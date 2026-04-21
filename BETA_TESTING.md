@@ -29,7 +29,7 @@ npm run build
 - Verify the Code Understanding section identifies relevant patterns such as ABAP logic, OData/service exposure, CAP/CDS, Fiori/UI5, CPI/Groovy, Azure Logic Apps, Commerce, Spartacus, error handling, and possible secrets.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm document text is copied to the clipboard.
-- Use Download Word and confirm the `.doc` file opens in Microsoft Word with code, screenshot images, template alignment, and technical interpretation included. If the embedded browser blocks downloads, use Copy doc as the fallback.
+- Use Download Word and confirm the `.doc` file opens in Microsoft Word with an inferred implementation summary, populated technical design sections, code, screenshot images, template alignment, and technical interpretation included. If the embedded browser blocks downloads, use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
 - Test desktop, tablet, and mobile browser widths for readable layout and no text overlap.
@@ -40,6 +40,7 @@ npm run build
 - Generated output downloads as a Word-compatible `.doc` file.
 - Screenshot images are embedded into the downloaded Word file when uploaded in the current browser session.
 - PDF/DOCX templates are referenced and guided by the Template Guidance field; the frontend does not deeply parse every proprietary template format.
+- Screenshot understanding depends on the screenshot type, caption, pasted visible text, and reviewer notes because this frontend-only version does not perform OCR.
 - The app currently has no backend, authentication, or shared team storage.
 
 ## Developer Notes

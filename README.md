@@ -10,7 +10,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Uploads screenshot evidence and lets you add captions, visible text, screenshot type, and reviewer notes for each figure.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured Word-compatible `.doc` file with purpose, process, template alignment, technical design, configuration, code analysis, evidence review, testing, risks, and support notes.
+- Generates a structured Word-compatible `.doc` file with purpose, inferred implementation summary, process, template alignment, populated technical design, configuration, code analysis, evidence review, testing, risks, and support notes.
 - Copies generated document text to the clipboard.
 - Saves form inputs locally in the browser with `localStorage`.
 
@@ -19,7 +19,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Use `BETA_TESTING.md` for the beta test checklist.
 - The app is frontend-only and does not require backend services.
 - Screenshot images stay in the active browser session; exported Word documents contain embedded screenshots, figure descriptions, captured visible text, and generated technical interpretation.
-- The app does not perform OCR or server-side AI vision. For best screenshot understanding, testers should paste key visible text, object names, status messages, or errors into each screenshot card.
+- The app does not perform OCR or server-side AI vision. It creates the best technical spec when testers paste key visible screenshot text, object names, status messages, errors, message IDs, or transaction details into each screenshot card.
 - The app does not deeply parse PDF/DOCX templates in-browser. For best template alignment, testers should paste the required headings, section order, and style rules into Template Guidance after uploading the template.
 - Keep `node_modules/` and `dist/` out of Git. They are ignored by `.gitignore`.
 

@@ -218,6 +218,172 @@ function detectCodeSignals(code, area) {
   return [...new Set(signals)];
 }
 
+function extractMatches(text, patterns) {
+  const values = [];
+  patterns.forEach((pattern) => {
+    for (const match of text.matchAll(pattern)) {
+      const value = safeLine(match[1] || match[0]);
+      if (value && value.length <= 80) values.push(value);
+    }
+  });
+  return [...new Set(values)].slice(0, 12);
+}
+
+function inferCodeDetails(code, area) {
+  const text = code || '';
+  const lower = text.toLowerCase();
+  const details = {
+    objects: extractMatches(text, [
+      /\b(?:class|method|function|form|module|entity|service|action|workflow|trigger)\s+([a-zA-Z_][\w/-]*)/gi,
+      /\b(?:DATA|TYPES)\s*\(\s*([a-zA-Z_][\w]*)\s*\)/gi,
+      /\bCALL FUNCTION\s+'([^']+)'/gi,
+      /\b(?:FROM|JOIN|UPDATE|MODIFY|INSERT INTO)\s+([a-zA-Z_][\w/]*)/gi
+    ]),
+    validations: [],
+    integrations: [],
+    persistence: [],
+    security: [],
+    errors: [],
+    operations: []
+  };
+
+  if (/if\s+.+\s+is\s+initial|mandatory|required|validate|validation/i.test(text)) {
+    details.validations.push('Input validation or mandatory-field checks are present.');
+  }
+  if (/select\b|from\b|join\b|update\b|modify\b|insert\b|delete\b|entity\s+\w+/i.test(text)) {
+    details.persistence.push('The code reads or changes application data and should document table/entity impact.');
+  }
+  if (/odata|\/iwbep\/|service binding|destination|http|api|adapter|connector|iflow|logic app|workflow|occ/i.test(text)) {
+    details.integrations.push('The implementation participates in a service/API/integration flow and should document endpoint, sender, receiver, and payload mapping.');
+  }
+  if (/role|authorization|authority-check|oauth|jwt|bearer|credential|secret|destination/i.test(text)) {
+    details.security.push('Authorization or credential handling is relevant and should be documented with roles, destinations, and secret storage approach.');
+  }
+  if (/raise exception|try\s*\{|catch\s*\(|throw new|error|failed|exception/i.test(text)) {
+    details.errors.push('The solution includes exception/error handling; document message behavior, retry/reprocess rules, and support action.');
+  }
+  if (/deserialize|serialize|mapping|transform|payload|json|xml/i.test(lower)) {
+    details.operations.push('Payload parsing, serialization, mapping, or transformation is part of the delivered logic.');
+  }
+  if (/loop|filter|where|case|switch|if\s+/i.test(text)) {
+    details.operations.push('Conditional or iterative business logic is present and should be described as processing rules.');
+  }
+  if (!safeLine(text)) {
+    details.operations.push(`No code snippet has been supplied yet; ${area.name} implementation details must be completed from attached artifacts.`);
+  }
+
+  return details;
+}
+
+function collectEvidenceSummary(screenshots) {
+  if (!screenshots.length) {
+    return ['No screenshot evidence has been attached yet.'];
+  }
+
+  return screenshots.map((shot, index) => {
+    const caption = safeLine(shot.caption) || shot.name;
+    const visible = safeLine(shot.extractedText);
+    const note = safeLine(shot.note);
+    return `Figure ${index + 1} (${shot.screenType}): ${caption}${visible ? `; visible text: ${visible}` : ''}${note ? `; note: ${note}` : ''}`;
+  });
+}
+
+function areaSpecificDetails(area, codeDetails, screenshots) {
+  const evidence = collectEvidenceSummary(screenshots);
+  const objectText = codeDetails.objects.length ? codeDetails.objects.join(', ') : 'objects to be confirmed from repository/package';
+  const base = {
+    'sap-abap': {
+      'Object overview': [`ABAP objects identified or referenced: ${objectText}.`, 'Document package, transport, activation status, and runtime entry point.'],
+      'Selection logic': [...codeDetails.validations, ...codeDetails.operations, 'Capture selection-screen parameters, filters, and default values if applicable.'],
+      'Data model': [...codeDetails.persistence, 'List SAP tables, CDS views, structures, and key fields touched by the change.'],
+      Enhancements: ['Confirm whether this is standard enhancement, custom report/class, BAdI, user exit, or enhancement spot.'],
+      'Error handling': [...codeDetails.errors, 'Document message class/number, exception class, and recovery steps.']
+    },
+    'sap-integration': {
+      'Integration flow': [...codeDetails.integrations, ...codeDetails.operations, `Evidence reviewed: ${evidence[0]}`],
+      Adapters: ['Document sender and receiver adapters, protocol, endpoint, authentication, and timeout settings.'],
+      Mappings: [...codeDetails.operations, 'Map source fields to SAP target fields and call out mandatory transformations.'],
+      Security: [...codeDetails.security, 'Document credential alias, destination, certificate, OAuth client, or key vault dependency.'],
+      Monitoring: ['Document message monitor location, correlation/message ID, alerting, and reprocess approach.', ...evidence.slice(0, 2)]
+    },
+    'sap-btp-fiori': {
+      'App intent': ['Document semantic object/action, launchpad tile, target mapping, and primary user action.'],
+      'UI5 components': [...codeDetails.objects.map((item) => `Component/object reference: ${item}.`), 'Document view/controller/component/manifest changes.'],
+      'OData services': [...codeDetails.integrations, 'Document service URL, entity sets, bindings, and draft/read/update behavior.'],
+      'Launchpad setup': ['Document content provider, catalog/group/space/page, role collection, and deployment target.'],
+      Authorizations: [...codeDetails.security, 'Document role collections and backend authorization dependencies.']
+    },
+    'sap-cap': {
+      'Domain model': [...codeDetails.persistence, `Entities/services detected or referenced: ${objectText}.`],
+      Services: [...codeDetails.integrations, 'Document service definitions, exposed entities, actions, and events.'],
+      Handlers: [...codeDetails.operations, ...codeDetails.errors, 'Document custom handlers, validations, and side effects.'],
+      Persistence: [...codeDetails.persistence, 'Document database artifacts, migrations, and tenant/data isolation assumptions.'],
+      Deployment: ['Document MTA/modules, service bindings, destinations, and Cloud Foundry/Kyma target.']
+    },
+    'azure-logic-apps': {
+      Trigger: ['Document trigger type, schedule/event/source, schema, and sample payload.'],
+      Actions: [...codeDetails.operations, `Workflow/action references: ${objectText}.`],
+      Connectors: [...codeDetails.integrations, 'Document connector accounts, SAP/Azure endpoints, and permission model.'],
+      'Retry policy': [...codeDetails.errors, 'Document retry count, backoff, timeout, idempotency, and duplicate handling.'],
+      'Run history': ['Attach run IDs, action outputs, failure screenshots, and correlation IDs.', ...evidence.slice(0, 2)]
+    },
+    'sap-spartacus': {
+      'Feature module': [`Feature/component references: ${objectText}.`, 'Document Angular module, route, guards, and lazy loading behavior.'],
+      'CMS mapping': ['Document CMS component mapping, slot/page dependency, and content setup.'],
+      'Occ calls': [...codeDetails.integrations, 'Document OCC endpoint, request/response model, and error handling.'],
+      'Storefront behavior': [...codeDetails.operations, 'Document user journey, state changes, and responsive behavior.'],
+      Testing: ['Document unit/e2e scenarios, mocked OCC responses, and regression areas.']
+    },
+    'sap-commerce': {
+      'Extension changes': [`Extension/object references: ${objectText}.`, 'Document extension, spring configuration, and build/update steps.'],
+      'Items XML': [...codeDetails.persistence, 'Document item types, attributes, relations, indexes, and deployment/update impact.'],
+      Impex: ['Document impex files, sample data, environment-specific values, and rollback approach.'],
+      Cronjobs: ['Document cronjob/service/facade behavior, schedule, and monitoring location if applicable.'],
+      'Backoffice/HAC': [...evidence.slice(0, 2), 'Document Backoffice screens, HAC scripts, FlexibleSearch, and operational validation.']
+    }
+  };
+
+  return base[area.id] || {};
+}
+
+function buildSectionInsights(area, section, form, screenshots) {
+  const codeDetails = inferCodeDetails(form.codeSnippet, area);
+  const specific = areaSpecificDetails(area, codeDetails, screenshots)[section] || [];
+  const evidence = collectEvidenceSummary(screenshots);
+  const generic = [
+    `${section} is part of the ${area.name} delivery scope for "${safeLine(form.title) || 'this technical specification'}".`,
+    ...codeDetails.operations,
+    ...codeDetails.integrations,
+    ...codeDetails.validations,
+    ...codeDetails.persistence,
+    ...codeDetails.security,
+    ...codeDetails.errors,
+    `Evidence basis: ${evidence[0]}`
+  ];
+
+  const merged = [...specific, ...generic]
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .slice(0, 5);
+
+  return merged.length ? merged : [`Add implementation details for ${section}.`];
+}
+
+function buildImplementationSummary(form, area, screenshots) {
+  const codeDetails = inferCodeDetails(form.codeSnippet, area);
+  const signals = detectCodeSignals(form.codeSnippet, area);
+  const evidence = collectEvidenceSummary(screenshots);
+  const summary = [
+    `The specification is generated for ${area.name} using the supplied business context, implementation snippet, screenshot evidence, and template guidance.`,
+    codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : 'No concrete object names were confidently inferred from the snippet; confirm object names during review.',
+    signals[0],
+    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : evidence[0],
+    safeLine(form.templateOutline) ? 'The uploaded template guidance has been included as a document alignment input.' : 'No detailed template guidance has been supplied yet.'
+  ];
+
+  return summary.filter(Boolean);
+}
+
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
@@ -273,23 +439,28 @@ function buildDocumentation(form, area, screenshots) {
     : '- No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.';
 
   const areaPrompts = area.prompts.map((prompt) => `- ${prompt}: _Add detail_`).join('\n');
-  const sectionDetails = area.sections.map((section) => `### ${section}\n- Current state: _Describe what was built or configured._\n- Evidence: _Reference screenshot, object name, or code line._`).join('\n\n');
+  const sectionDetails = area.sections.map((section) => {
+    const insights = buildSectionInsights(area, section, form, screenshots);
+    return `### ${section}\n${bulletList(insights)}`;
+  }).join('\n\n');
+  const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
 
   return `# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
     `## 1. Purpose\n${safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'}\n\n` +
-    `## 2. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
-    `## 3. Template Reference\n${templateReference}\n\n` +
-    `## 4. Solution Area Checklist\n${areaPrompts}\n\n` +
-    `## 5. Technical Design\n${sectionDetails}\n\n` +
-    `## 6. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
-    `## 7. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
-    `## 8. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
-    `## 9. Screenshot Evidence\n${evidence}\n\n` +
-    `## 10. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 11. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
-    `## 12. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
-    `## 13. Support Notes\n${bulletList([
+    `## 2. Generated Implementation Summary\n${implementationSummary}\n\n` +
+    `## 3. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
+    `## 4. Template Reference\n${templateReference}\n\n` +
+    `## 5. Solution Area Checklist\n${areaPrompts}\n\n` +
+    `## 6. Technical Design\n${sectionDetails}\n\n` +
+    `## 7. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
+    `## 8. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
+    `## 9. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
+    `## 10. Screenshot Evidence\n${evidence}\n\n` +
+    `## 11. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
+    `## 12. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
+    `## 13. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
+    `## 14. Support Notes\n${bulletList([
       'Primary support team: _Add team or queue_',
       'Monitoring location: _Add SAP app, BTP cockpit, Azure run history, or commerce console path_',
       'Recovery action: _Add restart, reprocess, rollback, or manual correction steps_',
@@ -300,6 +471,7 @@ function buildDocumentation(form, area, screenshots) {
 function buildWordDocument(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const codeSignals = detectCodeSignals(form.codeSnippet, area);
+  const implementationSummary = buildImplementationSummary(form, area, screenshots);
   const templateRows = safeLine(form.templateName)
     ? `
       <tr><th>Template file</th><td>${escapeHtml(form.templateName)}</td></tr>
@@ -310,10 +482,7 @@ function buildWordDocument(form, area, screenshots) {
   const areaPromptRows = area.prompts.map((prompt) => `<tr><td>${escapeHtml(prompt)}</td><td>Add detail</td></tr>`).join('');
   const technicalSections = area.sections.map((section) => `
     <h3>${escapeHtml(section)}</h3>
-    <ul>
-      <li>Current state: Describe what was built or configured.</li>
-      <li>Evidence: Reference screenshot, object name, or code line.</li>
-    </ul>
+    ${htmlList(buildSectionInsights(area, section, form, screenshots))}
   `).join('');
   const screenshotBlocks = screenshots.length
     ? screenshots.map((shot, index) => {
@@ -367,39 +536,42 @@ function buildWordDocument(form, area, screenshots) {
     <h2>1. Purpose</h2>
     ${htmlParagraph(form.overview, 'Describe why this documentation exists and what work was completed.')}
 
-    <h2>2. Business Process</h2>
+    <h2>2. Generated Implementation Summary</h2>
+    ${htmlList(implementationSummary)}
+
+    <h2>3. Business Process</h2>
     ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
 
-    <h2>3. Template Alignment</h2>
+    <h2>4. Template Alignment</h2>
     ${safeLine(form.templateOutline)
       ? htmlParagraph(form.templateOutline, 'Template headings and style guidance were supplied.')
       : htmlParagraph('', safeLine(form.templateName) ? 'Template uploaded. Paste headings or key format rules into Template Guidance for stronger alignment.' : 'No uploaded template was supplied. Standard format used.')}
 
-    <h2>4. Solution Area Checklist</h2>
+    <h2>5. Solution Area Checklist</h2>
     <table><tr><th>Item</th><th>Detail</th></tr>${areaPromptRows}</table>
 
-    <h2>5. Technical Design</h2>
+    <h2>6. Technical Design</h2>
     ${technicalSections}
 
-    <h2>6. Configuration Notes</h2>
+    <h2>7. Configuration Notes</h2>
     ${htmlParagraph(form.configNotes, 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.')}
 
-    <h2>7. Code Understanding</h2>
+    <h2>8. Code Understanding</h2>
     ${htmlList(codeSignals)}
 
-    <h2>8. Code Snippet</h2>
+    <h2>9. Code Snippet</h2>
     <pre>${escapeHtml(form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')}</pre>
 
-    <h2>9. Screenshot Evidence And Technical Interpretation</h2>
+    <h2>10. Screenshot Evidence And Technical Interpretation</h2>
     ${screenshotBlocks}
 
-    <h2>10. Testing And Validation</h2>
+    <h2>11. Testing And Validation</h2>
     ${htmlParagraph(form.testingNotes, 'Document test scenarios, test data, expected results, actual results, and linked defects.')}
 
-    <h2>11. Risks, Assumptions, And Open Items</h2>
+    <h2>12. Risks, Assumptions, And Open Items</h2>
     ${htmlParagraph(form.risks, 'List risks, assumptions, dependencies, and follow-up actions.')}
 
-    <h2>12. Support Notes</h2>
+    <h2>13. Support Notes</h2>
     ${htmlList([
       'Primary support team: Add team or queue',
       'Monitoring location: Add SAP app, BTP cockpit, Azure run history, or commerce console path',
