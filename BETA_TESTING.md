@@ -24,6 +24,8 @@ npm run build
 - Confirm all solution area presets render correctly: SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori, SAP CAP, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
 - Switch between SAP ABAP and SAP BTP Fiori and verify the section list changes. ABAP should show backend-focused sections like ABAP object inventory, data access, performance, error handling, and transport; Fiori should show UI/UX, Fiori Elements annotations, UI5 components, OData/service binding, launchpad, roles, and accessibility.
 - Switch through every solution area and verify checklist rows, technical design guidance, testing focus, risks, and support notes are specific to that area rather than generic.
+- Generate a document for each solution area and confirm every output always includes the same required headers: Purpose, Generated Implementation Summary, Process Flow, Business Process, Template Alignment, Solution Area Checklist, Technical Design, Configuration Notes, Code Understanding, Code Snippet, Screenshot Evidence, Screenshot Review And Technical Interpretation, Unit Testing, Integration Testing, Regression Testing And UAT, Deployment And Transport, Monitoring And Support, Risks/Assumptions/Open Items, and Approval And Handover.
+- Confirm the Technical Design subsections change dynamically by selected solution area while the required generic headers remain present.
 - Choose **Create automatically** and verify the generated automatic template outline is used in Template Alignment.
 - Choose **Use my template**, upload PDF, DOC, and DOCX templates. Add template headings/style rules into Template Guidance and verify the downloaded Word spec uses that template guidance in Template Alignment.
 - Add multiple screenshot files and verify preview cards, captions, notes, and remove actions.
@@ -33,7 +35,7 @@ npm run build
 - Verify the Process Flow section infers trigger/input, parse/map, validation, integration, data update, success outcome, exception path, and monitoring/support steps from the supplied code and screenshot evidence.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Preview opens, status text appears, and document text is copied to the clipboard.
-- Use Download Word and confirm the `.doc` file opens in Microsoft Word with an inferred implementation summary, populated technical design sections, process flow, code, screenshot images, template alignment, and technical interpretation included. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
+- Use Download Word and confirm the `.doc` file opens in Microsoft Word with all required headers, inferred implementation summary, populated technical design sections, process flow, code, screenshot images, template alignment, technical interpretation, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover included. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
 - Test desktop, tablet, and mobile browser widths for readable layout and no text overlap.

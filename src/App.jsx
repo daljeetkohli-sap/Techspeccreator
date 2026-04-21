@@ -80,6 +80,28 @@ const docFormats = [
   { id: 'handover', name: 'Handover Pack', description: 'Implementation summary, evidence, risks, and next steps.' }
 ];
 
+const requiredDocumentHeaders = [
+  'Purpose',
+  'Generated Implementation Summary',
+  'Process Flow',
+  'Business Process',
+  'Template Alignment',
+  'Solution Area Checklist',
+  'Technical Design',
+  'Configuration Notes',
+  'Code Understanding',
+  'Code Snippet',
+  'Screenshot Evidence',
+  'Screenshot Review And Technical Interpretation',
+  'Unit Testing',
+  'Integration Testing',
+  'Regression Testing And UAT',
+  'Deployment And Transport',
+  'Monitoring And Support',
+  'Risks, Assumptions, And Open Items',
+  'Approval And Handover'
+];
+
 const screenshotTypes = [
   'SAP GUI / ABAP Workbench',
   'SAP Fiori / UI5 screen',
@@ -233,6 +255,69 @@ const areaDocumentProfiles = {
     testing: ['Test create/change CR, workflow approval/rejection, validation/derivation rules, duplicate checks, replication, and audit trail.', 'Validate role-based UI and governance responsibilities.'],
     risks: ['Incorrect BRF+ rules can block or corrupt master data.', 'Workflow agent determination can route to wrong approver.', 'Replication/key mapping failures can desync target systems.', 'Governance role gaps can break compliance.'],
     support: ['Monitor change request status, workflow logs, DRF/outbound replication, key mapping, and validation errors.', 'Support needs CR type, entity type, workflow path, replication target, and responsible steward.']
+  }
+};
+
+const areaValidationProfiles = {
+  'sap-abap': {
+    unit: ['Create ABAP Unit coverage for reusable methods, validations, calculations, and exception branches.', 'Validate selection-screen defaults, mandatory checks, message handling, and authorization branches with isolated test data.', 'Mock or isolate BAPI/function module/class dependencies where direct calls would update business data.'],
+    integration: ['Execute end-to-end tests in the SAP landscape using the target transaction/report/class and realistic business data.', 'Confirm called BAPIs, function modules, CDS views, locks, update tasks, commits, and application logs behave as designed.', 'Attach ST22/SLG1/job log or ADT activation evidence for success and failure scenarios.'],
+    regression: ['Retest impacted reports, enhancements, variants, interfaces, and batch jobs that share the changed tables, classes, or exits.', 'Compare before/after output for key users and confirm no unintended authorization or performance regression.'],
+    deployment: ['Release and import the transport sequence with dependencies, activation checks, and post-import smoke testing.', 'Document package, transport request, import order, owner, rollback or correction transport approach, and production validation steps.']
+  },
+  'sap-integration': {
+    unit: ['Validate mapping logic, Groovy scripts, content modifiers, value mappings, and exception handling with representative payloads.', 'Test mandatory-field, malformed-payload, credential, and receiver-error branches before end-to-end testing.'],
+    integration: ['Run sender-to-receiver scenarios through the deployed iFlow and capture message IDs, MPL traces, payload before/after mapping, and receiver acknowledgement.', 'Verify retry, idempotency, duplicate handling, alerting, and manual reprocess steps.'],
+    regression: ['Replay sample payloads for all affected message types, sender systems, receiver systems, and mapping variants.', 'Confirm unchanged interfaces in the same package or shared value mappings continue to process successfully.'],
+    deployment: ['Deploy the iFlow/package to the target tenant, validate security material, externalized parameters, certificates, destinations, and alert subscriptions.', 'Record artifact version, tenant, package, transport/export path, rollback version, and support reprocess procedure.']
+  },
+  'sap-btp-fiori': {
+    unit: ['Run UI5/controller/formatter/component tests for custom logic, value formatting, validation, and extension hooks.', 'Validate Fiori Elements annotation-driven behavior such as facets, field groups, value helps, actions, and side effects where applicable.'],
+    integration: ['Test launchpad navigation, semantic object/action, OData calls, draft/save/cancel behavior, role access, and browser network responses.', 'Capture desktop, tablet, mobile, accessibility, error-message, empty-state, and success-state evidence.'],
+    regression: ['Retest impacted launchpad spaces/pages/catalogs, cross-app navigation, shared UI5 libraries, and OData entity behavior.', 'Confirm app cache/content refresh does not expose stale metadata after deployment.'],
+    deployment: ['Deploy the HTML5/UI5 application to the target BTP subaccount/space and update app content, launchpad content, role collections, and destination dependencies.', 'Record app ID, semantic intent, service endpoint, deployment target, version, and cache refresh steps.']
+  },
+  'sap-cap': {
+    unit: ['Run CAP unit tests for service handlers, validations, custom actions/functions, and transaction rollback behavior.', 'Use mock services or seeded test data for entity, association, and authorization branch coverage.'],
+    integration: ['Execute OData/API tests against the deployed service with bound HANA/HDI, XSUAA, destinations, and external services.', 'Validate service events, database migration behavior, tenant assumptions, and error responses.'],
+    regression: ['Retest API consumers, Fiori apps, CDS entities, role restrictions, and database artifacts touched by the CAP change.', 'Compare contract changes against existing API collections or consumer expectations.'],
+    deployment: ['Build and deploy the MTA or CAP artifact to the target org/space, then validate app routes, service bindings, HDI deployment, and role collections.', 'Record MTA version, org/space, service instances, rollback artifact, and smoke-test URL.']
+  },
+  'azure-logic-apps': {
+    unit: ['Validate expressions, compose/parse JSON actions, conditions, variables, and schema handling with sample payloads.', 'Test connector authentication, managed identity permissions, timeout, retry, and scoped failure branches.'],
+    integration: ['Trigger the workflow through the real source event or HTTP endpoint and confirm every connector action, SAP/Azure call, and response path.', 'Capture run IDs, action inputs/outputs, correlation IDs, diagnostics, and alert evidence.'],
+    regression: ['Replay successful, invalid, timeout, and downstream-failure payloads for affected workflows and shared connectors.', 'Confirm existing schedules, event subscriptions, and connector permissions are not disrupted.'],
+    deployment: ['Deploy ARM/Bicep/workflow changes to the target subscription, resource group, region, and environment configuration.', 'Record workflow version, connection references, Key Vault/identity permissions, rollback plan, and alert rule updates.']
+  },
+  'sap-spartacus': {
+    unit: ['Run Angular component, service, guard, resolver, facade, selector, and effect tests for changed storefront logic.', 'Mock OCC responses and validate loading, empty, error, and success states.'],
+    integration: ['Test CMS component mapping, route configuration, OCC calls, cart/customer/session flows, and responsive behavior in the storefront.', 'Capture browser console/network evidence and relevant CMS/content setup.'],
+    regression: ['Run e2e journeys around affected pages, checkout/cart/customer state, CMS slots, and base-site/language/currency variants.', 'Confirm accessibility and responsive behavior across target browsers.'],
+    deployment: ['Build and deploy the storefront package, validate environment config, OCC endpoints, CMS mappings, SSR/build output if used, and cache behavior.', 'Record build version, route/component ownership, rollback artifact, and smoke-test journeys.']
+  },
+  'sap-commerce': {
+    unit: ['Run unit tests for services, facades, populators, converters, validators, interceptors, and cronjob logic.', 'Validate items.xml model assumptions, impex defaults, and Spring bean overrides with focused test data.'],
+    integration: ['Execute system update validation, impex import, Backoffice/HAC checks, API/storefront flows, and cronjob execution.', 'Capture FlexibleSearch, cronjob history, application logs, and relevant Backoffice evidence.'],
+    regression: ['Retest affected extensions, type-system changes, storefront/API behavior, Backoffice views, impex data, and scheduled jobs.', 'Confirm existing Spring overrides and interceptors still behave as expected.'],
+    deployment: ['Deploy extension changes through the Commerce Cloud pipeline, run required system update steps, and validate impex/import dependencies.', 'Record extension, system update impact, cloud build/deploy version, rollback approach, and post-deploy smoke tests.']
+  },
+  'sap-rap': {
+    unit: ['Run ABAP Unit tests for behavior pool validations, determinations, actions, feature control, and save sequence logic.', 'Validate draft, lock, ETag, and authorization branches using controlled RAP test data.'],
+    integration: ['Test service binding publication, OData create/edit/delete/action flows, draft activate/discard, and Fiori Elements rendering.', 'Capture Gateway/service errors, ADT activation, application logs, and UI evidence.'],
+    regression: ['Retest projection views, annotations, exposed fields/actions, authorization master, and apps consuming the RAP service.', 'Confirm draft and lock behavior for concurrent-user scenarios.'],
+    deployment: ['Transport CDS, behavior, projection, service definition/binding, and authorization artifacts in the correct order.', 'Record service binding URL, activation status, transport sequence, and post-import service publication checks.']
+  },
+  'sap-bw': {
+    unit: ['Validate transformation routines, calculated fields, filters, currency/unit logic, and variable handling with controlled source data.', 'Test provider/model changes for keys, joins, aggregations, and exception cases.'],
+    integration: ['Run extraction/load or task/process chain tests from source to provider/model and query/report consumption.', 'Capture record counts, reconciliation totals, load logs, failed requests, and query screenshots.'],
+    regression: ['Compare source and target totals, KPI values, variables, schedules, authorizations, and existing consuming reports before and after the change.', 'Retest dependencies in upstream extraction and downstream reporting.'],
+    deployment: ['Transport BW/Datasphere artifacts, dependencies, schedules, authorizations, and environment-specific connections.', 'Record model/provider, source system, load schedule, reconciliation procedure, rollback or reload approach.']
+  },
+  'sap-mdg': {
+    unit: ['Validate BRF+ validation/derivation rules, duplicate checks, feeder class logic, and UI field behavior with controlled master-data cases.', 'Test agent determination and rule branches for requester, approver, steward, and exception paths.'],
+    integration: ['Execute create/change change requests through workflow approval/rejection/rework, replication, key mapping, and audit trail.', 'Capture CR numbers, workflow logs, DRF/outbound status, replication target evidence, and validation errors.'],
+    regression: ['Retest affected CR types, governance roles, UI configurations, replication models, BRF+ decision tables, and downstream master-data consumers.', 'Confirm existing approval paths and compliance controls remain unchanged.'],
+    deployment: ['Transport MDG data model, UI, workflow, BRF+, replication, and role changes in the required sequence.', 'Record CR type, entity, replication target, role changes, transport sequence, and post-import governance smoke tests.']
   }
 };
 
@@ -651,27 +736,19 @@ function buildAutomaticTemplateOutline(form, area) {
   const checklist = Object.keys(profile?.checklistDetails || {})
     .map((item) => `- ${item}: ${profile.checklistDetails[item]}`)
     .join('\n');
+  const requiredHeaders = requiredDocumentHeaders
+    .map((header, index) => `${index + 1}. ${header}${header === 'Technical Design' ? ' (dynamic for selected solution area)' : ''}`)
+    .join('\n');
 
   return [
     `Document type: ${selectedFormat.name}`,
     `Solution area: ${area.name}`,
     '',
-    'Recommended section order:',
-    '1. Purpose',
-    '2. Generated Implementation Summary',
-    '3. Process Flow',
-    '4. Business Process',
-    '5. Template Alignment',
-    '6. Solution Area Checklist',
-    '7. Technical Design',
+    'Required section order:',
+    requiredHeaders,
+    '',
+    'Dynamic Technical Design subsections for this solution area:',
     designSections,
-    '8. Configuration Notes',
-    '9. Code Understanding',
-    '10. Code Snippet',
-    '11. Screenshot Evidence And Technical Interpretation',
-    '12. Testing And Validation',
-    '13. Risks, Assumptions, And Open Items',
-    '14. Support Notes',
     '',
     'Area-specific checklist focus:',
     checklist || area.prompts.map((prompt) => `- ${prompt}`).join('\n'),
@@ -714,6 +791,61 @@ function buildAreaTestingStrategy(area, form, screenshots) {
     safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : '',
     evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Evidence to attach: ${evidence[0]}` : ''
   ].filter(Boolean);
+}
+
+function getValidationProfile(area) {
+  return areaValidationProfiles[area.id] || {
+    unit: [`Create focused unit tests for reusable ${area.name} logic, validations, calculations, and exception branches.`],
+    integration: [`Execute end-to-end ${area.name} tests across all touched systems, services, configuration, and user roles.`],
+    regression: [`Retest impacted ${area.name} objects, upstream/downstream dependencies, authorizations, and existing business scenarios.`],
+    deployment: [`Deploy ${area.name} changes using the approved environment path, capture version/transport details, and run post-deploy smoke tests.`]
+  };
+}
+
+function buildUnitTestingPlan(area, form) {
+  const profile = getValidationProfile(area);
+  return [
+    ...profile.unit,
+    safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : 'Add project-specific unit-test cases, test data, and expected assertions.'
+  ].filter(Boolean);
+}
+
+function buildIntegrationTestingPlan(area, screenshots) {
+  const profile = getValidationProfile(area);
+  const evidence = collectEvidenceSummary(screenshots);
+  return [
+    ...profile.integration,
+    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Evidence to attach: ${evidence[0]}` : 'Attach evidence for the full process path, including input, processing, output, and monitoring result.'
+  ].filter(Boolean);
+}
+
+function buildRegressionTestingPlan(area) {
+  return [
+    ...getValidationProfile(area).regression,
+    'Confirm test sign-off from the business/process owner and technical owner before release.'
+  ];
+}
+
+function buildDeploymentPlan(area) {
+  return [
+    ...getValidationProfile(area).deployment,
+    'Capture environment, version, dependency, rollback, and post-deployment validation details for developer handover.'
+  ];
+}
+
+function buildMonitoringSupportPlan(area) {
+  return [
+    ...buildAreaSupportNotes(area),
+    'Define monitoring owner, frequency, alert threshold, first response action, escalation path, and recovery or reprocess steps.'
+  ];
+}
+
+function buildApprovalHandoverPlan(area, form) {
+  return [
+    `Confirm ${area.name} technical owner review for the generated design, test evidence, deployment notes, and support procedure.`,
+    `Confirm business/process owner acceptance for ${safeLine(form.businessProcess) || 'the documented business process'}.`,
+    'Record approver names, approval date, release decision, known limitations, and handover recipients.'
+  ];
 }
 
 function buildAreaRiskControls(area, form) {
@@ -790,9 +922,13 @@ function buildDocumentation(form, area, screenshots) {
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
   const processFlow = buildProcessFlowText(form, area, screenshots);
-  const areaTesting = bulletList(buildAreaTestingStrategy(area, form, screenshots));
+  const unitTesting = bulletList(buildUnitTestingPlan(area, form));
+  const integrationTesting = bulletList(buildIntegrationTestingPlan(area, screenshots));
+  const regressionTesting = bulletList(buildRegressionTestingPlan(area));
+  const deploymentPlan = bulletList(buildDeploymentPlan(area));
+  const monitoringSupport = bulletList(buildMonitoringSupportPlan(area));
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
-  const areaSupport = bulletList(buildAreaSupportNotes(area));
+  const approvalHandover = bulletList(buildApprovalHandoverPlan(area, form));
 
   return `# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
@@ -800,7 +936,7 @@ function buildDocumentation(form, area, screenshots) {
     `## 2. Generated Implementation Summary\n${implementationSummary}\n\n` +
     `## 3. Process Flow\n${processFlow}\n\n` +
     `## 4. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
-    `## 5. Template Reference\n${templateReference}\n\n` +
+    `## 5. Template Alignment\n${templateReference}\n\n` +
     `## 6. Solution Area Checklist\n${areaPrompts}\n\n` +
     `## 7. Technical Design\n${sectionDetails}\n\n` +
     `## 8. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
@@ -808,9 +944,13 @@ function buildDocumentation(form, area, screenshots) {
     `## 10. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
     `## 11. Screenshot Evidence\n${evidence}\n\n` +
     `## 12. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 13. Testing And Validation\n${areaTesting}\n\n` +
-    `## 14. Risks, Assumptions, And Open Items\n${areaRisks}\n\n` +
-    `## 15. Support Notes\n${areaSupport}\n`;
+    `## 13. Unit Testing\n${unitTesting}\n\n` +
+    `## 14. Integration Testing\n${integrationTesting}\n\n` +
+    `## 15. Regression Testing And UAT\n${regressionTesting}\n\n` +
+    `## 16. Deployment And Transport\n${deploymentPlan}\n\n` +
+    `## 17. Monitoring And Support\n${monitoringSupport}\n\n` +
+    `## 18. Risks, Assumptions, And Open Items\n${areaRisks}\n\n` +
+    `## 19. Approval And Handover\n${approvalHandover}\n`;
 }
 
 function buildWordDocument(form, area, screenshots) {
@@ -833,12 +973,15 @@ function buildWordDocument(form, area, screenshots) {
     <h3>${escapeHtml(section)}</h3>
     ${htmlList(buildSectionInsights(area, section, form, screenshots))}
   `).join('');
-  const areaTesting = buildAreaTestingStrategy(area, form, screenshots);
+  const unitTesting = buildUnitTestingPlan(area, form);
+  const integrationTesting = buildIntegrationTestingPlan(area, screenshots);
+  const regressionTesting = buildRegressionTestingPlan(area);
+  const deploymentPlan = buildDeploymentPlan(area);
+  const monitoringSupport = buildMonitoringSupportPlan(area);
   const areaRisks = buildAreaRiskControls(area, form);
-  const areaSupport = buildAreaSupportNotes(area);
-  const screenshotBlocks = screenshots.length
+  const approvalHandover = buildApprovalHandoverPlan(area, form);
+  const screenshotEvidenceBlocks = screenshots.length
     ? screenshots.map((shot, index) => {
-      const observations = getScreenshotObservations(shot, area);
       return `
         <div class="figure">
           <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
@@ -849,12 +992,16 @@ function buildWordDocument(form, area, screenshots) {
             <tr><th>Visible text</th><td>${escapeHtml(safeLine(shot.extractedText) || 'Not captured')}</td></tr>
             <tr><th>Reviewer notes</th><td>${escapeHtml(safeLine(shot.note) || 'Not captured')}</td></tr>
           </table>
-          <h4>Technical Interpretation</h4>
-          ${htmlList(observations)}
         </div>
       `;
     }).join('')
     : '<p>No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.</p>';
+  const screenshotReviewBlocks = screenshots.length
+    ? screenshots.map((shot, index) => `
+      <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
+      ${htmlList(getScreenshotObservations(shot, area))}
+    `).join('')
+    : '<p>No screenshot review has been generated yet. Add screenshots and capture visible text/notes so the generated document can interpret each image.</p>';
 
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -927,17 +1074,32 @@ function buildWordDocument(form, area, screenshots) {
     <h2>10. Code Snippet</h2>
     <pre>${escapeHtml(form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')}</pre>
 
-    <h2>11. Screenshot Evidence And Technical Interpretation</h2>
-    ${screenshotBlocks}
+    <h2>11. Screenshot Evidence</h2>
+    ${screenshotEvidenceBlocks}
 
-    <h2>12. Testing And Validation</h2>
-    ${htmlList(areaTesting)}
+    <h2>12. Screenshot Review And Technical Interpretation</h2>
+    ${screenshotReviewBlocks}
 
-    <h2>13. Risks, Assumptions, And Open Items</h2>
+    <h2>13. Unit Testing</h2>
+    ${htmlList(unitTesting)}
+
+    <h2>14. Integration Testing</h2>
+    ${htmlList(integrationTesting)}
+
+    <h2>15. Regression Testing And UAT</h2>
+    ${htmlList(regressionTesting)}
+
+    <h2>16. Deployment And Transport</h2>
+    ${htmlList(deploymentPlan)}
+
+    <h2>17. Monitoring And Support</h2>
+    ${htmlList(monitoringSupport)}
+
+    <h2>18. Risks, Assumptions, And Open Items</h2>
     ${htmlList(areaRisks)}
 
-    <h2>14. Support Notes</h2>
-    ${htmlList(areaSupport)}
+    <h2>19. Approval And Handover</h2>
+    ${htmlList(approvalHandover)}
   </body>
 </html>`;
 }
@@ -964,7 +1126,7 @@ function App() {
       words,
       screenshots: screenshots.length,
       completedFields,
-      sections: selectedArea.sections.length + 9
+      sections: requiredDocumentHeaders.length + selectedArea.sections.length
     };
   }, [form, generatedDoc, screenshots.length, selectedArea.sections.length]);
 
@@ -1220,6 +1382,16 @@ function App() {
           </label>
 
           <div className="area-sections">
+            <strong>Always included headers</strong>
+            <ul>
+              {requiredDocumentHeaders.slice(0, 8).map((header) => (
+                <li key={header}>{header}</li>
+              ))}
+              <li>Unit Testing, Integration Testing, Regression/UAT, Deployment, Monitoring, Risks, and Handover</li>
+            </ul>
+          </div>
+
+          <div className="area-sections">
             <strong>{selectedArea.name} sections</strong>
             <ul>
               {selectedArea.sections.map((section) => (
@@ -1231,7 +1403,7 @@ function App() {
           <div className="area-sections">
             <strong>Testing focus</strong>
             <ul>
-              {buildAreaTestingStrategy(selectedArea, form, screenshots).slice(0, 4).map((item) => (
+              {[...buildUnitTestingPlan(selectedArea, form), ...buildIntegrationTestingPlan(selectedArea, screenshots)].slice(0, 4).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>

@@ -6,6 +6,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 
 - Provides solution-area presets for SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori apps, SAP CAP apps, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
 - Changes the checklist and technical design sections dynamically by solution area, so ABAP, Fiori, CAP, Integration, Commerce, and other SAP areas get different document sections.
+- Always includes the core technical-spec headers: purpose, implementation summary, process flow, business process, template alignment, checklist, technical design, configuration, code understanding, screenshot evidence/review, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover.
 - Generates area-specific checklist details, testing strategy, risk controls, support notes, and technical design guidance for every supported solution area.
 - Captures document title, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
 - Asks whether to **Create automatically** or **Use my template** before generating the spec.
@@ -14,7 +15,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Uploads screenshot evidence and lets you add captions, visible text, screenshot type, and reviewer notes for each figure.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured Word-compatible `.doc` file with purpose, inferred implementation summary, process flow, process description, template alignment, populated technical design, configuration, code analysis, evidence review, testing, risks, and support notes.
+- Generates a structured Word-compatible `.doc` file with the required generic headers plus dynamic solution-area technical sections and area-specific validation guidance.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Downloads a Word-compatible `.doc` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.
