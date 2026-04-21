@@ -189,6 +189,32 @@ h1 {
   font-weight: 780;
 }
 
+.action-help,
+.action-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border: 1px solid #c9d2d9;
+  border-radius: 8px;
+  background: #f8fbfc;
+  color: #2d3c46;
+  line-height: 1.45;
+}
+
+.action-help strong {
+  color: #17343b;
+}
+
+.action-status {
+  margin-top: 0;
+  background: #eef7f5;
+  color: #17343b;
+  font-weight: 760;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1fr);

@@ -179,6 +179,10 @@ function htmlList(items) {
   return `<ul>${items.filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
 }
 
+function htmlOrderedList(items) {
+  return `<ol>${items.filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ol>`;
+}
+
 function slugify(value) {
   return (safeLine(value) || 'technical-specification')
     .toLowerCase()
@@ -577,12 +581,24 @@ function buildWordDocument(form, area, screenshots) {
     }).join('')
     : '<p>No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.</p>';
 
-  return `<!doctype html>
-<html>
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
   <head>
-    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>${escapeHtml(safeLine(form.title) || 'Technical Documentation')}</title>
+    <!--[if gte mso 9]>
+    <xml>
+      <w:WordDocument>
+        <w:View>Print</w:View>
+        <w:Zoom>100</w:Zoom>
+        <w:DoNotOptimizeForBrowser/>
+      </w:WordDocument>
+    </xml>
+    <![endif]-->
     <style>
+      @page { margin: 1in; }
       body { font-family: Calibri, Arial, sans-serif; color: #1f2933; line-height: 1.45; }
       h1 { color: #12343b; font-size: 26pt; margin-bottom: 8px; }
       h2 { color: #1f5d6c; border-bottom: 1px solid #b7c7cf; padding-bottom: 4px; margin-top: 24px; }
@@ -613,9 +629,7 @@ function buildWordDocument(form, area, screenshots) {
     ${htmlList(implementationSummary)}
 
     <h2>3. Process Flow</h2>
-    <ol>
-      ${processFlowSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}
-    </ol>
+    ${htmlOrderedList(processFlowSteps)}
 
     <h2>4. Business Process</h2>
     ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
@@ -666,6 +680,7 @@ function App() {
   const [screenshots, setScreenshots] = useState([]);
   const [activeTab, setActiveTab] = useState('compose');
   const [toast, setToast] = useState('');
+  const [lastAction, setLastAction] = useState('');
 
   const selectedArea = capabilityAreas.find((area) => area.id === form.areaId) ?? capabilityAreas[0];
   const generatedDoc = useMemo(
@@ -748,8 +763,17 @@ function App() {
   }
 
   async function copyDocumentation() {
-    await navigator.clipboard.writeText(generatedDoc);
-    showToast('Documentation text copied');
+    const textToCopy = generatedDoc || buildDocumentation(form, selectedArea, screenshots);
+    setActiveTab('preview');
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setLastAction(`Copied ${textToCopy.length.toLocaleString()} characters of generated specification text to the clipboard.`);
+      showToast('Document text copied');
+    } catch {
+      setLastAction('Clipboard access was blocked. The generated specification is visible in Preview so you can select and copy it manually.');
+      showToast('Clipboard blocked; use Preview');
+    }
   }
 
   async function handleCodeFileUpload(event) {
@@ -800,6 +824,13 @@ function App() {
   async function exportWord() {
     const filename = `${slugify(form.title)}.doc`;
     const wordDocument = buildWordDocument(form, selectedArea, screenshots);
+    setActiveTab('preview');
+
+    if (!safeLine(wordDocument) || wordDocument.length < 500) {
+      setLastAction('Word export did not have enough content to save. Add a title, code snippet, screenshot notes, or process details and try again.');
+      showToast('Nothing to export yet');
+      return;
+    }
 
     try {
       if ('showSaveFilePicker' in window) {
@@ -815,6 +846,7 @@ function App() {
         const writable = await handle.createWritable();
         await writable.write(wordDocument);
         await writable.close();
+        setLastAction(`Saved ${filename}. Open it in Microsoft Word to view the generated technical specification.`);
         showToast('Word document saved');
         return;
       }
@@ -826,7 +858,7 @@ function App() {
     }
 
     try {
-      const blob = new Blob(['\ufeff', wordDocument], { type: 'application/msword;charset=utf-8' });
+      const blob = new Blob([wordDocument], { type: 'application/msword;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -839,9 +871,11 @@ function App() {
         URL.revokeObjectURL(url);
         link.remove();
       }, 1000);
+      setLastAction(`Started download for ${filename}. If the in-app browser blocks it, open this app in Chrome or Edge and click Download Word again.`);
       showToast('Word download started');
     } catch {
       await copyDocumentation();
+      setLastAction('Download was blocked by the browser. The generated specification text was copied or shown in Preview as a fallback.');
       showToast('Download blocked, copied document text instead');
     }
   }
@@ -880,6 +914,13 @@ function App() {
         <div><strong>{stats.screenshots}</strong><span>Screenshots</span></div>
         <div><strong>{stats.completedFields}/7</strong><span>Inputs filled</span></div>
         <div><strong>{stats.sections}</strong><span>Doc sections</span></div>
+      </section>
+
+      <section className="action-help" aria-label="Export help">
+        <strong>Copy doc</strong>
+        <span>copies the generated specification text and opens Preview.</span>
+        <strong>Download Word</strong>
+        <span>saves a Word-compatible .doc file with the generated spec, process flow, code analysis, and screenshots.</span>
       </section>
 
       <section className="workspace-grid">
@@ -1122,6 +1163,7 @@ function App() {
                   <button type="button" className="danger-button" onClick={resetWorkspace}>Reset</button>
                 </div>
               </div>
+              {lastAction ? <div className="action-status" role="status">{lastAction}</div> : null}
               <textarea className="markdown-output" value={generatedDoc} readOnly spellCheck="false" />
             </section>
           )}
