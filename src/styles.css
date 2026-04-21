@@ -307,6 +307,30 @@ h1 {
   margin-top: 18px;
 }
 
+.area-sections {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #c9d2d9;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.area-sections strong {
+  color: #17343b;
+}
+
+.area-sections ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: #5a6b77;
+  line-height: 1.35;
+  font-weight: 720;
+}
+
 .topbar,
 .section-row,
 .preview-toolbar {

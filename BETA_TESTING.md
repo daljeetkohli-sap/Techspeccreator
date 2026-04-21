@@ -22,6 +22,7 @@ npm run build
 ## Suggested Beta Test Areas
 
 - Confirm all solution area presets render correctly: SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori, SAP CAP, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
+- Switch between SAP ABAP and SAP BTP Fiori and verify the section list changes. ABAP should show backend-focused sections like ABAP object inventory, data access, performance, error handling, and transport; Fiori should show UI/UX, Fiori Elements annotations, UI5 components, OData/service binding, launchpad, roles, and accessibility.
 - Choose **Create automatically** and verify the generated automatic template outline is used in Template Alignment.
 - Choose **Use my template**, upload PDF, DOC, and DOCX templates. Add template headings/style rules into Template Guidance and verify the downloaded Word spec uses that template guidance in Template Alignment.
 - Add multiple screenshot files and verify preview cards, captions, notes, and remove actions.

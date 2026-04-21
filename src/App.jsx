@@ -5,71 +5,71 @@ const capabilityAreas = [
     id: 'sap-abap',
     name: 'SAP ABAP',
     tag: 'Backend',
-    sections: ['Object overview', 'Selection logic', 'Data model', 'Enhancements', 'Error handling'],
-    prompts: ['Report/program name', 'Tables/CDS views', 'BAPI/FM/classes', 'Transport/request']
+    sections: ['ABAP object inventory', 'Selection and business logic', 'Data access and CDS model', 'Enhancements and exits', 'Performance and locking', 'Error handling and application log', 'Transport and deployment'],
+    prompts: ['Program/class/function module', 'Package and transport request', 'Tables/CDS views', 'BAPI/FM/classes', 'Selection-screen inputs', 'Authorization objects', 'Application log/message class']
   },
   {
     id: 'sap-integration',
     name: 'SAP Integration Suite / CPI',
     tag: 'Integration',
-    sections: ['Integration flow', 'Adapters', 'Mappings', 'Security', 'Monitoring'],
-    prompts: ['Sender/receiver systems', 'iFlow name', 'Message mapping', 'Credential alias']
+    sections: ['Integration scenario', 'Sender and receiver adapters', 'Message mapping and transformation', 'Security material', 'Exception subprocess and retry', 'Monitoring and reprocessing'],
+    prompts: ['Sender/receiver systems', 'iFlow name', 'Adapters/protocols', 'Message mapping/script', 'Credential alias/certificate', 'Monitoring view', 'Retry/reprocess rule']
   },
   {
     id: 'sap-btp-fiori',
     name: 'SAP BTP Fiori App',
     tag: 'Frontend',
-    sections: ['App intent', 'UI5 components', 'OData services', 'Launchpad setup', 'Authorizations'],
-    prompts: ['App ID', 'Semantic object/action', 'Service endpoint', 'Role collection']
+    sections: ['Fiori app intent and navigation', 'UI/UX behavior', 'Fiori Elements annotations', 'UI5 components and extensions', 'OData and service binding', 'Launchpad content and deployment', 'Roles and authorizations', 'Accessibility and responsive behavior'],
+    prompts: ['App ID', 'Semantic object/action', 'Floorplan/page type', 'Fiori Elements annotations', 'UI5 extension points', 'OData service endpoint', 'Role collection/catalog/space/page', 'UX states and validation messages']
   },
   {
     id: 'sap-cap',
     name: 'SAP CAP App',
     tag: 'Cloud',
-    sections: ['Domain model', 'Services', 'Handlers', 'Persistence', 'Deployment'],
-    prompts: ['Entities', 'Service definitions', 'Event handlers', 'MTA/Cloud Foundry target']
+    sections: ['Domain model and entities', 'Service API contract', 'Event handlers and validations', 'Persistence and data model', 'Authentication and authorization', 'Deployment and service bindings', 'Testing and mock data'],
+    prompts: ['Entities', 'Service definitions', 'Event handlers', 'MTA/Cloud Foundry target', 'Service bindings', 'XSUAA roles', 'Test data']
   },
   {
     id: 'azure-logic-apps',
     name: 'Azure Logic Apps',
     tag: 'Azure',
-    sections: ['Trigger', 'Actions', 'Connectors', 'Retry policy', 'Run history'],
-    prompts: ['Workflow name', 'Trigger type', 'Connectors', 'Key expressions']
+    sections: ['Workflow trigger', 'Action sequence', 'Connectors and identities', 'Data operations and expressions', 'Retry and exception policy', 'Run history and diagnostics', 'Environment configuration'],
+    prompts: ['Workflow name', 'Trigger type', 'Connectors', 'Managed identity/connection', 'Key expressions', 'Retry policy', 'Run history evidence']
   },
   {
     id: 'sap-spartacus',
     name: 'SAP Spartacus',
     tag: 'Commerce UI',
-    sections: ['Feature module', 'CMS mapping', 'Occ calls', 'Storefront behavior', 'Testing'],
-    prompts: ['Component/module', 'CMS slot', 'OCC endpoint', 'Route/config']
+    sections: ['Feature module and routing', 'CMS component mapping', 'OCC API integration', 'Storefront UI/UX behavior', 'State management and guards', 'Responsive and accessibility behavior', 'Testing and regression scope'],
+    prompts: ['Component/module', 'CMS slot', 'OCC endpoint', 'Route/config', 'Guards/resolvers', 'NgRx/facade usage', 'E2E tests']
   },
   {
     id: 'sap-commerce',
     name: 'SAP Commerce Cloud',
     tag: 'Commerce',
-    sections: ['Extension changes', 'Items XML', 'Impex', 'Cronjobs', 'Backoffice/HAC'],
-    prompts: ['Extension', 'Item types', 'Impex files', 'Cronjob/facade/service']
+    sections: ['Extension and module changes', 'Items XML and type system', 'Service/facade/populator logic', 'Impex and sample data', 'Cronjobs and tasks', 'Backoffice and HAC validation', 'Deployment and system update'],
+    prompts: ['Extension', 'Item types', 'Impex files', 'Cronjob/facade/service', 'Spring beans', 'Backoffice config', 'System update impact']
   },
   {
     id: 'sap-rap',
     name: 'SAP RAP / Fiori Elements',
     tag: 'S/4HANA',
-    sections: ['Behavior definition', 'Projection', 'Annotations', 'Draft handling', 'Authorization'],
-    prompts: ['Root entity', 'Behavior pool', 'Annotations', 'Service binding']
+    sections: ['RAP data model', 'Behavior definition and implementation', 'Projection and service exposure', 'Fiori Elements annotations', 'Draft and locking behavior', 'Authorization and feature control', 'Service binding and publication'],
+    prompts: ['Root entity', 'Behavior pool', 'Annotations', 'Service binding', 'Draft enabled', 'Authorization master', 'Projection view']
   },
   {
     id: 'sap-bw',
     name: 'SAP BW / Datasphere',
     tag: 'Analytics',
-    sections: ['Data source', 'Transformations', 'Queries', 'Scheduling', 'Reconciliation'],
-    prompts: ['Provider/model', 'Transformation logic', 'Query name', 'Load schedule']
+    sections: ['Source system and extraction', 'Data model/provider', 'Transformations and business rules', 'Queries and consumption model', 'Scheduling and dependencies', 'Reconciliation and data quality', 'Authorization and transport'],
+    prompts: ['Provider/model', 'Transformation logic', 'Query name', 'Load schedule', 'Source system', 'Reconciliation checks', 'Analysis authorizations']
   },
   {
     id: 'sap-mdg',
     name: 'SAP MDG',
     tag: 'Master Data',
-    sections: ['Change request', 'Data model', 'Workflow', 'Validations', 'Replication'],
-    prompts: ['Entity type', 'CR type', 'BRF+ rules', 'Replication target']
+    sections: ['Master data object and scope', 'Change request type', 'MDG data model and UI', 'Workflow and approvals', 'Validations and derivations', 'Replication and key mapping', 'Governance roles and audit trail'],
+    prompts: ['Entity type', 'CR type', 'BRF+ rules', 'Replication target', 'Workflow path', 'UI configuration', 'Governance roles']
   }
 ];
 
@@ -298,53 +298,94 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
   const objectText = codeDetails.objects.length ? codeDetails.objects.join(', ') : 'objects to be confirmed from repository/package';
   const base = {
     'sap-abap': {
-      'Object overview': [`ABAP objects identified or referenced: ${objectText}.`, 'Document package, transport, activation status, and runtime entry point.'],
-      'Selection logic': [...codeDetails.validations, ...codeDetails.operations, 'Capture selection-screen parameters, filters, and default values if applicable.'],
-      'Data model': [...codeDetails.persistence, 'List SAP tables, CDS views, structures, and key fields touched by the change.'],
-      Enhancements: ['Confirm whether this is standard enhancement, custom report/class, BAdI, user exit, or enhancement spot.'],
-      'Error handling': [...codeDetails.errors, 'Document message class/number, exception class, and recovery steps.']
+      'ABAP object inventory': [`ABAP objects identified or referenced: ${objectText}.`, 'Document object type, package, transport, activation status, and runtime entry point.', 'Confirm whether objects are custom Z/Y objects or extensions to standard SAP behavior.'],
+      'Selection and business logic': [...codeDetails.validations, ...codeDetails.operations, 'Capture selection-screen parameters, filters, default values, and business rule branches.'],
+      'Data access and CDS model': [...codeDetails.persistence, 'List SAP tables, CDS views, structures, keys, joins, and read/write impact.'],
+      'Enhancements and exits': ['Confirm whether this is a BAdI, user exit, enhancement spot, implicit enhancement, custom report/class, or RAP/service extension.'],
+      'Performance and locking': ['Document expected volume, SELECT strategy, indexes, buffering, enqueue/dequeue locking, update task, and commit/rollback behavior.'],
+      'Error handling and application log': [...codeDetails.errors, 'Document message class/number, exception class, SLG1/application log object, and recovery steps.'],
+      'Transport and deployment': ['Document transport request, package, dependencies, activation sequence, retrofit needs, and post-import validation.']
     },
     'sap-integration': {
-      'Integration flow': [...codeDetails.integrations, ...codeDetails.operations, `Evidence reviewed: ${evidence[0]}`],
-      Adapters: ['Document sender and receiver adapters, protocol, endpoint, authentication, and timeout settings.'],
-      Mappings: [...codeDetails.operations, 'Map source fields to SAP target fields and call out mandatory transformations.'],
-      Security: [...codeDetails.security, 'Document credential alias, destination, certificate, OAuth client, or key vault dependency.'],
-      Monitoring: ['Document message monitor location, correlation/message ID, alerting, and reprocess approach.', ...evidence.slice(0, 2)]
+      'Integration scenario': [...codeDetails.integrations, ...codeDetails.operations, `Evidence reviewed: ${evidence[0]}`],
+      'Sender and receiver adapters': ['Document sender and receiver adapters, protocol, endpoint, authentication, timeout, and quality-of-service settings.'],
+      'Message mapping and transformation': [...codeDetails.operations, 'Map source fields to SAP target fields and call out mandatory transformations, value mappings, Groovy scripts, and content modifiers.'],
+      'Security material': [...codeDetails.security, 'Document credential alias, destination, certificate, OAuth client, key pair, or key vault dependency.'],
+      'Exception subprocess and retry': [...codeDetails.errors, 'Document exception subprocess, retry count, idempotency, duplicate handling, alerting, and manual reprocess path.'],
+      'Monitoring and reprocessing': ['Document message monitor location, correlation/message ID, alerting, and reprocess approach.', ...evidence.slice(0, 2)]
     },
     'sap-btp-fiori': {
-      'App intent': ['Document semantic object/action, launchpad tile, target mapping, and primary user action.'],
-      'UI5 components': [...codeDetails.objects.map((item) => `Component/object reference: ${item}.`), 'Document view/controller/component/manifest changes.'],
-      'OData services': [...codeDetails.integrations, 'Document service URL, entity sets, bindings, and draft/read/update behavior.'],
-      'Launchpad setup': ['Document content provider, catalog/group/space/page, role collection, and deployment target.'],
-      Authorizations: [...codeDetails.security, 'Document role collections and backend authorization dependencies.']
+      'Fiori app intent and navigation': ['Document semantic object/action, launchpad tile, target mapping, inbound/outbound navigation, and primary user action.'],
+      'UI/UX behavior': ['Document screen layout, field behavior, mandatory indicators, value helps, table/list behavior, buttons, messages, and user decision points.', ...evidence.slice(0, 2)],
+      'Fiori Elements annotations': ['Document floorplan, annotation files, UI facets, line items, identification, field groups, actions, side effects, and presentation variants.'],
+      'UI5 components and extensions': [...codeDetails.objects.map((item) => `Component/object reference: ${item}.`), 'Document manifest, component, controller extension, fragment, formatter, model, and routing changes.'],
+      'OData and service binding': [...codeDetails.integrations, 'Document service URL, entity sets, operation/action imports, bindings, draft/read/update behavior, and backend service owner.'],
+      'Launchpad content and deployment': ['Document content provider, app descriptor, catalog/group/space/page, role collection, deployment target, and cache/republish steps.'],
+      'Roles and authorizations': [...codeDetails.security, 'Document role collections, catalog access, backend PFCG/authorization objects, and business role dependencies.'],
+      'Accessibility and responsive behavior': ['Document keyboard navigation, labels, value-state messages, responsive layout behavior, device support, and accessibility considerations.']
     },
     'sap-cap': {
-      'Domain model': [...codeDetails.persistence, `Entities/services detected or referenced: ${objectText}.`],
-      Services: [...codeDetails.integrations, 'Document service definitions, exposed entities, actions, and events.'],
-      Handlers: [...codeDetails.operations, ...codeDetails.errors, 'Document custom handlers, validations, and side effects.'],
-      Persistence: [...codeDetails.persistence, 'Document database artifacts, migrations, and tenant/data isolation assumptions.'],
-      Deployment: ['Document MTA/modules, service bindings, destinations, and Cloud Foundry/Kyma target.']
+      'Domain model and entities': [...codeDetails.persistence, `Entities/services detected or referenced: ${objectText}.`],
+      'Service API contract': [...codeDetails.integrations, 'Document service definitions, exposed entities, actions, events, API paths, and request/response behavior.'],
+      'Event handlers and validations': [...codeDetails.operations, ...codeDetails.errors, 'Document custom handlers, validations, side effects, and transaction handling.'],
+      'Persistence and data model': [...codeDetails.persistence, 'Document database artifacts, migrations, tenant isolation, seed data, and data retention assumptions.'],
+      'Authentication and authorization': [...codeDetails.security, 'Document XSUAA scopes/roles, restrictions annotations, identity provider, and role collections.'],
+      'Deployment and service bindings': ['Document MTA/modules, service bindings, destinations, HDI/container, Cloud Foundry/Kyma target, and environment variables.'],
+      'Testing and mock data': ['Document unit/integration tests, mocked services, seed data, API test collections, and deployment smoke tests.']
     },
     'azure-logic-apps': {
-      Trigger: ['Document trigger type, schedule/event/source, schema, and sample payload.'],
-      Actions: [...codeDetails.operations, `Workflow/action references: ${objectText}.`],
-      Connectors: [...codeDetails.integrations, 'Document connector accounts, SAP/Azure endpoints, and permission model.'],
-      'Retry policy': [...codeDetails.errors, 'Document retry count, backoff, timeout, idempotency, and duplicate handling.'],
-      'Run history': ['Attach run IDs, action outputs, failure screenshots, and correlation IDs.', ...evidence.slice(0, 2)]
+      'Workflow trigger': ['Document trigger type, schedule/event/source, schema, and sample payload.'],
+      'Action sequence': [...codeDetails.operations, `Workflow/action references: ${objectText}.`],
+      'Connectors and identities': [...codeDetails.integrations, ...codeDetails.security, 'Document connector accounts, SAP/Azure endpoints, managed identity, and permission model.'],
+      'Data operations and expressions': [...codeDetails.operations, 'Document compose/parse JSON/condition expressions, variables, and field mapping.'],
+      'Retry and exception policy': [...codeDetails.errors, 'Document retry count, backoff, timeout, idempotency, scoped error handling, and duplicate handling.'],
+      'Run history and diagnostics': ['Attach run IDs, action outputs, failure screenshots, and correlation IDs.', ...evidence.slice(0, 2)],
+      'Environment configuration': ['Document connections, parameters, app settings, Key Vault references, and environment-specific values.']
     },
     'sap-spartacus': {
-      'Feature module': [`Feature/component references: ${objectText}.`, 'Document Angular module, route, guards, and lazy loading behavior.'],
-      'CMS mapping': ['Document CMS component mapping, slot/page dependency, and content setup.'],
-      'Occ calls': [...codeDetails.integrations, 'Document OCC endpoint, request/response model, and error handling.'],
-      'Storefront behavior': [...codeDetails.operations, 'Document user journey, state changes, and responsive behavior.'],
-      Testing: ['Document unit/e2e scenarios, mocked OCC responses, and regression areas.']
+      'Feature module and routing': [`Feature/component references: ${objectText}.`, 'Document Angular module, route, guards, and lazy loading behavior.'],
+      'CMS component mapping': ['Document CMS component mapping, slot/page dependency, page template, and content setup.'],
+      'OCC API integration': [...codeDetails.integrations, 'Document OCC endpoint, request/response model, facade/adapter/converter, and error handling.'],
+      'Storefront UI/UX behavior': [...codeDetails.operations, 'Document user journey, page states, empty/error/loading states, and responsive behavior.'],
+      'State management and guards': ['Document facade usage, NgRx/store impact, guards, resolvers, and route protection.'],
+      'Responsive and accessibility behavior': ['Document mobile/desktop behavior, keyboard support, ARIA labels, and accessibility constraints.'],
+      'Testing and regression scope': ['Document unit/e2e scenarios, mocked OCC responses, regression areas, and browser/device coverage.']
     },
     'sap-commerce': {
-      'Extension changes': [`Extension/object references: ${objectText}.`, 'Document extension, spring configuration, and build/update steps.'],
-      'Items XML': [...codeDetails.persistence, 'Document item types, attributes, relations, indexes, and deployment/update impact.'],
-      Impex: ['Document impex files, sample data, environment-specific values, and rollback approach.'],
-      Cronjobs: ['Document cronjob/service/facade behavior, schedule, and monitoring location if applicable.'],
-      'Backoffice/HAC': [...evidence.slice(0, 2), 'Document Backoffice screens, HAC scripts, FlexibleSearch, and operational validation.']
+      'Extension and module changes': [`Extension/object references: ${objectText}.`, 'Document extension, module, spring configuration, and build/update steps.'],
+      'Items XML and type system': [...codeDetails.persistence, 'Document item types, attributes, relations, indexes, and deployment/update impact.'],
+      'Service/facade/populator logic': [...codeDetails.operations, 'Document service/facade/populator/converter changes and data flow between layers.'],
+      'Impex and sample data': ['Document impex files, sample data, environment-specific values, and rollback approach.'],
+      'Cronjobs and tasks': ['Document cronjob/service/facade behavior, schedule, triggers, and monitoring location if applicable.'],
+      'Backoffice and HAC validation': [...evidence.slice(0, 2), 'Document Backoffice screens, HAC scripts, FlexibleSearch, and operational validation.'],
+      'Deployment and system update': ['Document system update, initialization impact, build pipeline, cloud hot folder/media migration, and rollback.']
+    },
+    'sap-rap': {
+      'RAP data model': [...codeDetails.persistence, `Root/projection objects detected or referenced: ${objectText}.`],
+      'Behavior definition and implementation': [...codeDetails.operations, ...codeDetails.validations, 'Document managed/unmanaged behavior, actions, determinations, validations, and behavior pool methods.'],
+      'Projection and service exposure': [...codeDetails.integrations, 'Document projection views, service definition, service binding, publication status, and protocol.'],
+      'Fiori Elements annotations': ['Document UI annotations, facets, line items, identification, field groups, actions, side effects, and value helps.'],
+      'Draft and locking behavior': ['Document draft enablement, locks, ETags, numbering, save/activate flow, and concurrent edit behavior.'],
+      'Authorization and feature control': [...codeDetails.security, 'Document authorization master, instance authorization, feature control, and business role dependencies.'],
+      'Service binding and publication': ['Document binding type, preview app, published service URL, transport, and activation/deployment steps.']
+    },
+    'sap-bw': {
+      'Source system and extraction': ['Document source system, extractor/connection, delta method, and source dependencies.'],
+      'Data model/provider': [...codeDetails.persistence, `Provider/model references: ${objectText}.`],
+      'Transformations and business rules': [...codeDetails.operations, 'Document transformation rules, routines, currency/unit handling, and semantic mappings.'],
+      'Queries and consumption model': ['Document query/view, variables, restricted/calculated key figures, hierarchies, and consuming reports.'],
+      'Scheduling and dependencies': ['Document process chain, task chain, schedule, dependencies, restart point, and SLA.'],
+      'Reconciliation and data quality': ['Document record counts, totals, duplicate checks, exception reports, and reconciliation evidence.', ...evidence.slice(0, 2)],
+      'Authorization and transport': [...codeDetails.security, 'Document analysis authorizations, spaces/roles, transport path, and post-import validation.']
+    },
+    'sap-mdg': {
+      'Master data object and scope': [`Master data/entity references: ${objectText}.`, 'Document object scope, create/change/display behavior, and governance domain.'],
+      'Change request type': ['Document CR type, steps, priorities, statuses, and triggering business scenario.'],
+      'MDG data model and UI': [...codeDetails.persistence, 'Document entity type, attributes, UI configuration, feeder classes, and field properties.'],
+      'Workflow and approvals': ['Document workflow path, approver roles, agent determination, escalation, and rejection/rework behavior.'],
+      'Validations and derivations': [...codeDetails.validations, ...codeDetails.operations, 'Document BRF+ rules, derivations, duplicate checks, and error messages.'],
+      'Replication and key mapping': [...codeDetails.integrations, 'Document target systems, DRF/replication model, key mapping, and outbound status handling.'],
+      'Governance roles and audit trail': [...codeDetails.security, 'Document governance roles, authorization, audit fields, change history, and compliance evidence.']
     }
   };
 
@@ -995,6 +1036,15 @@ function App() {
             </select>
             <small>{docFormats.find((format) => format.id === form.format)?.description}</small>
           </label>
+
+          <div className="area-sections">
+            <strong>{selectedArea.name} sections</strong>
+            <ul>
+              {selectedArea.sections.map((section) => (
+                <li key={section}>{section}</li>
+              ))}
+            </ul>
+          </div>
         </aside>
 
         <section className="main-panel">
