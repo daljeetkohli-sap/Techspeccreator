@@ -384,6 +384,76 @@ function buildImplementationSummary(form, area, screenshots) {
   return summary.filter(Boolean);
 }
 
+function hasAny(value, patterns) {
+  return patterns.some((pattern) => pattern.test(value));
+}
+
+function buildProcessFlowSteps(form, area, screenshots) {
+  const code = form.codeSnippet || '';
+  const context = [
+    code,
+    form.businessProcess,
+    form.overview,
+    ...screenshots.flatMap((shot) => [shot.screenType, shot.caption, shot.extractedText, shot.note, shot.name])
+  ].map(safeLine).join(' ').toLowerCase();
+  const codeDetails = inferCodeDetails(code, area);
+  const steps = [];
+
+  if (hasAny(context, [/trigger|schedule|event|button|tile|launchpad|source|sender|workflow|http|api|request|payload/])) {
+    steps.push('Trigger/Input: The process starts from a user action, source system event, scheduled workflow, API request, or incoming payload. Confirm exact trigger and entry point from the attached evidence.');
+  } else {
+    steps.push('Trigger/Input: Confirm the initiating user action, source system, scheduled job, or inbound message that starts the process.');
+  }
+
+  if (codeDetails.operations.some((item) => /payload|parsing|serialization|mapping|transformation/i.test(item)) || hasAny(context, [/deserialize|serialize|mapping|transform|payload|json|xml|content modifier|message mapping/])) {
+    steps.push('Parse/Map: The supplied code or evidence indicates payload parsing, serialization, mapping, or transformation before the SAP target operation.');
+  }
+
+  if (codeDetails.validations.length || hasAny(context, [/mandatory|required|validate|validation|is initial|invalid|missing/])) {
+    steps.push('Validate: Mandatory fields and business rules are checked before processing continues; validation failures should route to error handling.');
+  }
+
+  if (codeDetails.security.length || hasAny(context, [/role|authorization|oauth|credential|destination|secret|certificate|authority-check/])) {
+    steps.push('Authorize/Connect: The process depends on roles, credentials, destinations, certificates, or connector accounts to call the target system.');
+  }
+
+  if (codeDetails.integrations.length || hasAny(context, [/adapter|iflow|odata|service|api|connector|logic app|occ|receiver|sender|endpoint/])) {
+    steps.push('Integrate: Data is passed through an integration/API/service layer; document sender, receiver, endpoint, adapter/connector, and message correlation ID.');
+  }
+
+  if (codeDetails.persistence.length || hasAny(context, [/select|insert|update|modify|delete|entity|table|cds|database|persist/])) {
+    steps.push('Read/Update Data: The implementation reads or updates SAP/application data; document impacted tables, entities, keys, and commit/rollback behavior.');
+  }
+
+  if (hasAny(context, [/loop|filter|where|case|switch|if |rule|condition|business rule/])) {
+    steps.push('Apply Business Logic: Conditional, filtering, looping, or rule-based processing determines how records are selected, transformed, or posted.');
+  }
+
+  if (hasAny(context, [/success|completed|processed|posted|green|200|ok|created|updated/])) {
+    steps.push('Success Outcome: Evidence indicates a successful processing or posting state; document resulting status, confirmation message, and output object.');
+  } else {
+    steps.push('Success Outcome: Define the expected final state, status message, created/updated object, and confirmation shown to users or support teams.');
+  }
+
+  if (codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/])) {
+    steps.push('Exception Path: Errors, missing data, failed calls, or timeouts should be logged and handled through retry, reprocess, alerting, or support correction.');
+  }
+
+  if (hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/])) {
+    steps.push('Monitor/Support: Runtime evidence should be tracked using message ID, run history, trace, application log, or support queue details.');
+  } else {
+    steps.push('Monitor/Support: Add the operational monitoring location and support steps for checking success/failure after execution.');
+  }
+
+  return steps.filter((step, index, list) => list.indexOf(step) === index);
+}
+
+function buildProcessFlowText(form, area, screenshots) {
+  return buildProcessFlowSteps(form, area, screenshots)
+    .map((step, index) => `${index + 1}. ${step}`)
+    .join('\n');
+}
+
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
@@ -444,23 +514,25 @@ function buildDocumentation(form, area, screenshots) {
     return `### ${section}\n${bulletList(insights)}`;
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
+  const processFlow = buildProcessFlowText(form, area, screenshots);
 
   return `# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
     `## 1. Purpose\n${safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'}\n\n` +
     `## 2. Generated Implementation Summary\n${implementationSummary}\n\n` +
-    `## 3. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
-    `## 4. Template Reference\n${templateReference}\n\n` +
-    `## 5. Solution Area Checklist\n${areaPrompts}\n\n` +
-    `## 6. Technical Design\n${sectionDetails}\n\n` +
-    `## 7. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
-    `## 8. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
-    `## 9. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
-    `## 10. Screenshot Evidence\n${evidence}\n\n` +
-    `## 11. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 12. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
-    `## 13. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
-    `## 14. Support Notes\n${bulletList([
+    `## 3. Process Flow\n${processFlow}\n\n` +
+    `## 4. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
+    `## 5. Template Reference\n${templateReference}\n\n` +
+    `## 6. Solution Area Checklist\n${areaPrompts}\n\n` +
+    `## 7. Technical Design\n${sectionDetails}\n\n` +
+    `## 8. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
+    `## 9. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
+    `## 10. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
+    `## 11. Screenshot Evidence\n${evidence}\n\n` +
+    `## 12. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
+    `## 13. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
+    `## 14. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
+    `## 15. Support Notes\n${bulletList([
       'Primary support team: _Add team or queue_',
       'Monitoring location: _Add SAP app, BTP cockpit, Azure run history, or commerce console path_',
       'Recovery action: _Add restart, reprocess, rollback, or manual correction steps_',
@@ -472,6 +544,7 @@ function buildWordDocument(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const codeSignals = detectCodeSignals(form.codeSnippet, area);
   const implementationSummary = buildImplementationSummary(form, area, screenshots);
+  const processFlowSteps = buildProcessFlowSteps(form, area, screenshots);
   const templateRows = safeLine(form.templateName)
     ? `
       <tr><th>Template file</th><td>${escapeHtml(form.templateName)}</td></tr>
@@ -539,39 +612,44 @@ function buildWordDocument(form, area, screenshots) {
     <h2>2. Generated Implementation Summary</h2>
     ${htmlList(implementationSummary)}
 
-    <h2>3. Business Process</h2>
+    <h2>3. Process Flow</h2>
+    <ol>
+      ${processFlowSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}
+    </ol>
+
+    <h2>4. Business Process</h2>
     ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
 
-    <h2>4. Template Alignment</h2>
+    <h2>5. Template Alignment</h2>
     ${safeLine(form.templateOutline)
       ? htmlParagraph(form.templateOutline, 'Template headings and style guidance were supplied.')
       : htmlParagraph('', safeLine(form.templateName) ? 'Template uploaded. Paste headings or key format rules into Template Guidance for stronger alignment.' : 'No uploaded template was supplied. Standard format used.')}
 
-    <h2>5. Solution Area Checklist</h2>
+    <h2>6. Solution Area Checklist</h2>
     <table><tr><th>Item</th><th>Detail</th></tr>${areaPromptRows}</table>
 
-    <h2>6. Technical Design</h2>
+    <h2>7. Technical Design</h2>
     ${technicalSections}
 
-    <h2>7. Configuration Notes</h2>
+    <h2>8. Configuration Notes</h2>
     ${htmlParagraph(form.configNotes, 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.')}
 
-    <h2>8. Code Understanding</h2>
+    <h2>9. Code Understanding</h2>
     ${htmlList(codeSignals)}
 
-    <h2>9. Code Snippet</h2>
+    <h2>10. Code Snippet</h2>
     <pre>${escapeHtml(form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')}</pre>
 
-    <h2>10. Screenshot Evidence And Technical Interpretation</h2>
+    <h2>11. Screenshot Evidence And Technical Interpretation</h2>
     ${screenshotBlocks}
 
-    <h2>11. Testing And Validation</h2>
+    <h2>12. Testing And Validation</h2>
     ${htmlParagraph(form.testingNotes, 'Document test scenarios, test data, expected results, actual results, and linked defects.')}
 
-    <h2>12. Risks, Assumptions, And Open Items</h2>
+    <h2>13. Risks, Assumptions, And Open Items</h2>
     ${htmlParagraph(form.risks, 'List risks, assumptions, dependencies, and follow-up actions.')}
 
-    <h2>13. Support Notes</h2>
+    <h2>14. Support Notes</h2>
     ${htmlList([
       'Primary support team: Add team or queue',
       'Monitoring location: Add SAP app, BTP cockpit, Azure run history, or commerce console path',

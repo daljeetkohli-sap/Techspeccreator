@@ -27,6 +27,7 @@ npm run build
 - Add screenshot type, visible text/object names/status messages, and notes. Click Review image and verify the generated technical interpretation appears in the document text and downloaded Word file.
 - Paste or attach ABAP, JSON, XML, JavaScript, Groovy, and CDS snippets and verify generated document text preserves formatting.
 - Verify the Code Understanding section identifies relevant patterns such as ABAP logic, OData/service exposure, CAP/CDS, Fiori/UI5, CPI/Groovy, Azure Logic Apps, Commerce, Spartacus, error handling, and possible secrets.
+- Verify the Process Flow section infers trigger/input, parse/map, validation, integration, data update, success outcome, exception path, and monitoring/support steps from the supplied code and screenshot evidence.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm document text is copied to the clipboard.
 - Use Download Word and confirm the `.doc` file opens in Microsoft Word with an inferred implementation summary, populated technical design sections, code, screenshot images, template alignment, and technical interpretation included. If the embedded browser blocks downloads, use Copy doc as the fallback.

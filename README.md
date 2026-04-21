@@ -10,7 +10,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Uploads screenshot evidence and lets you add captions, visible text, screenshot type, and reviewer notes for each figure.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured Word-compatible `.doc` file with purpose, inferred implementation summary, process, template alignment, populated technical design, configuration, code analysis, evidence review, testing, risks, and support notes.
+- Generates a structured Word-compatible `.doc` file with purpose, inferred implementation summary, process flow, process description, template alignment, populated technical design, configuration, code analysis, evidence review, testing, risks, and support notes.
 - Copies generated document text to the clipboard.
 - Saves form inputs locally in the browser with `localStorage`.
 
