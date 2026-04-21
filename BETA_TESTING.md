@@ -26,7 +26,7 @@ npm run build
 - Switch through every solution area and verify checklist rows, technical design guidance, testing focus, risks, and support notes are specific to that area rather than generic.
 - Generate a document for each solution area and confirm every output always includes the same required headers: Purpose, Generated Implementation Summary, Process Flow, Business Process, Template Alignment, Solution Area Checklist, Technical Design, Configuration Notes, Code Understanding, Code Snippet, Screenshot Evidence, Screenshot Review And Technical Interpretation, Unit Testing, Integration Testing, Regression Testing And UAT, Deployment And Transport, Monitoring And Support, Risks/Assumptions/Open Items, and Approval And Handover.
 - Confirm the Technical Design subsections change dynamically by selected solution area while the required generic headers remain present.
-- Confirm FAIR CONSULTING GROUP branding appears in Preview and downloaded Word documents for both **Create automatically** and **Use my template** modes.
+- Confirm the official FAIR CONSULTING GROUP logo appears in the branding preview and downloaded Word documents for both **Create automatically** and **Use my template** modes.
 - Upload an optional customer logo image and verify it appears in the downloaded Word document header; remove it and confirm the document still generates with FAIR branding only.
 - Choose **Create automatically** and verify the generated automatic template outline is used in Template Alignment.
 - Choose **Use my template**, upload PDF, DOC, and DOCX templates. Add template headings/style rules into Template Guidance and verify the downloaded Word spec uses that template guidance in Template Alignment.

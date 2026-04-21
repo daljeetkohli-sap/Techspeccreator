@@ -9,7 +9,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Always includes the core technical-spec headers: purpose, implementation summary, process flow, business process, template alignment, checklist, technical design, configuration, code understanding, screenshot evidence/review, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover.
 - Generates area-specific checklist details, testing strategy, risk controls, support notes, and technical design guidance for every supported solution area.
 - Captures document title, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
-- Adds FAIR CONSULTING GROUP branding to every generated document and supports an optional customer logo upload for the Word export header.
+- Adds the official FAIR CONSULTING GROUP logo to every generated document and supports an optional customer logo upload for the Word export header.
 - Asks whether to **Create automatically** or **Use my template** before generating the spec.
 - In **Create automatically** mode, generates a tech-spec structure from the selected SAP area, code snippet, screenshots, and notes.
 - In **Use my template** mode, uploads a PDF, DOC, or DOCX template and lets users add template headings, style rules, mandatory tables, and approval requirements.
