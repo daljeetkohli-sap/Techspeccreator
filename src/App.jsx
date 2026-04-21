@@ -92,6 +92,150 @@ const screenshotTypes = [
   'Test evidence'
 ];
 
+const areaDocumentProfiles = {
+  'sap-abap': {
+    checklistDetails: {
+      'Program/class/function module': 'Identify report, class, interface, function module, include, form, or RAP object delivered.',
+      'Package and transport request': 'Capture package, transport number, owner, dependencies, and import sequence.',
+      'Tables/CDS views': 'List transparent tables, CDS views, structures, keys, joins, read/update behavior, and data volume assumptions.',
+      'BAPI/FM/classes': 'Document called APIs/classes, importing/exporting parameters, exceptions, and side effects.',
+      'Selection-screen inputs': 'Describe parameters, select-options, defaults, validation, and user authorization dependencies.',
+      'Authorization objects': 'Document AUTHORITY-CHECK/PFCG role impacts and sensitive data access.',
+      'Application log/message class': 'Capture message class, SLG1 object/subobject, error texts, and support recovery path.'
+    },
+    testing: ['Unit test ABAP methods or report branches where possible.', 'Validate selection variants, mandatory-field failures, authorization failures, and high-volume data.', 'Run performance checks for SELECTs, locks, update tasks, and commit behavior.', 'Confirm transport import, activation, and post-import smoke test.'],
+    risks: ['Expensive SELECTs or missing indexes may affect production runtime.', 'Unclear locking/commit behavior can cause duplicate updates or data inconsistency.', 'Missing authorization checks can expose sensitive SAP data.', 'Transport dependencies must be imported in the correct sequence.'],
+    support: ['Monitor SLG1/application logs, ST22 dumps, SM13 update failures, and job logs if scheduled.', 'Support should know the report/class/FM name, variant, transport, message class, and reprocess steps.']
+  },
+  'sap-integration': {
+    checklistDetails: {
+      'Sender/receiver systems': 'Identify all source/target systems, business owners, connectivity route, and data direction.',
+      'iFlow name': 'Capture package, iFlow ID, version, deployed artifact, and environment.',
+      'Adapters/protocols': 'Document sender/receiver adapters, endpoints, QoS, timeout, polling, and authentication.',
+      'Message mapping/script': 'Describe graphical mapping, Groovy scripts, value mappings, content modifiers, and field defaults.',
+      'Credential alias/certificate': 'Capture security material, OAuth/certificate/basic auth, destinations, and rotation owner.',
+      'Monitoring view': 'Document message monitor, MPL properties, correlation ID, payload visibility, and alerting.',
+      'Retry/reprocess rule': 'Define retry count, idempotency, duplicate handling, manual reprocess, and failure ownership.'
+    },
+    testing: ['Test happy path, invalid payload, receiver downtime, mapping failure, credential failure, and duplicate message.', 'Capture message IDs, MPL traces, payload before/after mapping, and retry/reprocess evidence.', 'Validate alerting and monitoring visibility for support users.'],
+    risks: ['Receiver downtime or throttling can create backlog.', 'Mapping changes may break downstream mandatory fields.', 'Credential/certificate expiry can stop processing.', 'Poor idempotency can duplicate postings.'],
+    support: ['Monitor Integration Suite message monitor, MPL logs, alert notifications, and receiver-side acknowledgements.', 'Support needs iFlow name, package, correlation/message ID, reprocess rule, and credential owner.']
+  },
+  'sap-btp-fiori': {
+    checklistDetails: {
+      'App ID': 'Capture UI5 app ID, component namespace, repository/app content entry, and deployment target.',
+      'Semantic object/action': 'Document intent, inbound/outbound navigation, target mapping, and parameters.',
+      'Floorplan/page type': 'Identify List Report, Object Page, Overview Page, freestyle UI5, Worklist, or custom floorplan.',
+      'Fiori Elements annotations': 'Capture line items, facets, identification, field groups, actions, side effects, value helps, and presentation variants.',
+      'UI5 extension points': 'Document controller extensions, fragments, manifest changes, formatter/model usage, and custom controls.',
+      'OData service endpoint': 'Document OData version, service URL, entity sets, draft support, actions/functions, and backend owner.',
+      'Role collection/catalog/space/page': 'Capture BTP role collection, launchpad content, catalog/group/space/page, and PFCG/backend role dependencies.',
+      'UX states and validation messages': 'Document loading, empty, error, success, mandatory-field, and value-help behavior.'
+    },
+    testing: ['Test navigation intent, role access, value helps, field validation, draft/save/cancel behavior, and error messages.', 'Validate desktop/tablet/mobile layout, keyboard navigation, and accessibility labels.', 'Confirm OData calls, side effects, and launchpad cache/content refresh after deployment.'],
+    risks: ['Role collection or catalog mismatch can hide the app.', 'Annotation/service changes can alter UI behavior unexpectedly.', 'Poor responsive/accessibility handling can block users on smaller devices.', 'Cached launchpad content may show stale app metadata.'],
+    support: ['Monitor browser console/network traces, BTP HTML5 app deployment, launchpad content manager, OData backend logs, and authorization failures.', 'Support needs app ID, semantic object/action, service endpoint, role collection, and deployment space.']
+  },
+  'sap-cap': {
+    checklistDetails: {
+      Entities: 'List CDS entities, compositions, associations, keys, constraints, and ownership.',
+      'Service definitions': 'Document services, exposed entities, actions/functions, events, and API paths.',
+      'Event handlers': 'Capture before/on/after handlers, validations, side effects, and transaction boundaries.',
+      'MTA/Cloud Foundry target': 'Document org/space, MTA modules, deployment target, and pipeline.',
+      'Service bindings': 'Capture HANA/HDI, XSUAA, destinations, connectivity, messaging, and external services.',
+      'XSUAA roles': 'Document scopes, role templates, restrictions, role collections, and tenant assumptions.',
+      'Test data': 'Capture seed data, mock services, API test cases, and smoke tests.'
+    },
+    testing: ['Run CAP unit/integration tests, OData/API tests, authorization tests, and deployment smoke tests.', 'Validate service handlers, transaction rollback, mock data, and database migration behavior.'],
+    risks: ['Handler side effects may break transaction consistency.', 'Role/restriction gaps can expose data.', 'HDI/schema or service binding mismatch can fail deployment.', 'API changes can break consumers.'],
+    support: ['Monitor Cloud Foundry logs, app routes, service bindings, HANA/HDI artifacts, destination/connectivity logs, and API error responses.', 'Support needs app route, service name, org/space, MTA version, and role collection.']
+  },
+  'azure-logic-apps': {
+    checklistDetails: {
+      'Workflow name': 'Capture workflow name, resource group, subscription, environment, and region.',
+      'Trigger type': 'Document HTTP, recurrence, event, queue, SAP connector, or other trigger behavior.',
+      Connectors: 'List SAP/Azure/HTTP connectors, connection names, permissions, and endpoint owners.',
+      'Managed identity/connection': 'Document managed identity, connection account, Key Vault references, and access policies.',
+      'Key expressions': 'Capture expressions, compose/parse JSON steps, variables, conditions, and transformations.',
+      'Retry policy': 'Document retries, timeout, scopes, runAfter conditions, and idempotency.',
+      'Run history evidence': 'Capture run IDs, failed/success actions, payload samples, and correlation identifiers.'
+    },
+    testing: ['Test trigger, connector auth failure, invalid payload, timeout/retry, success path, and failed scoped action.', 'Validate run history details, diagnostics, and alert rules.'],
+    risks: ['Connector permission changes can stop runs.', 'Retry/idempotency gaps can duplicate SAP calls.', 'Expression changes can silently map wrong values.', 'Run history may expose sensitive payload data.'],
+    support: ['Monitor run history, action outputs, diagnostics, alerts, connector health, and Key Vault/managed identity access.', 'Support needs workflow name, resource group, run ID, connector name, and retry policy.']
+  },
+  'sap-spartacus': {
+    checklistDetails: {
+      'Component/module': 'Capture Angular component, feature module, lazy loading setup, and owning library.',
+      'CMS slot': 'Document CMS component type, slot, page template, and content setup.',
+      'OCC endpoint': 'Document OCC endpoint, request/response models, facade/adapter/converter, and error mapping.',
+      'Route/config': 'Capture route config, guards, resolvers, feature flags, and base-site assumptions.',
+      'Guards/resolvers': 'Document auth guards, checkout/cart/customer guards, and resolver data dependencies.',
+      'NgRx/facade usage': 'Capture state, facade, effects, selectors, and cache invalidation.',
+      'E2E tests': 'Document Cypress/e2e scope, mocked OCC responses, and browser/device coverage.'
+    },
+    testing: ['Test CMS placement, routing, OCC success/error states, loading/empty states, and responsive behavior.', 'Run unit tests, e2e journeys, regression tests around cart/customer/session state, and accessibility checks.'],
+    risks: ['CMS mapping mismatch can hide components.', 'OCC model changes can break storefront rendering.', 'State/cache issues can show stale data.', 'Responsive or accessibility gaps can affect customer journeys.'],
+    support: ['Monitor browser console/network, OCC responses, CMS content setup, SSR/build logs if relevant, and storefront route errors.', 'Support needs component/module, CMS slot, OCC endpoint, and route.']
+  },
+  'sap-commerce': {
+    checklistDetails: {
+      Extension: 'Capture custom extension, addon/module, dependencies, and ownership.',
+      'Item types': 'Document items.xml types, attributes, relations, indexes, and deployment/update behavior.',
+      'Impex files': 'List impex files, sample data, environment-specific values, and rollback.',
+      'Cronjob/facade/service': 'Document service/facade/populator/converter/cronjob classes and execution path.',
+      'Spring beans': 'Capture spring XML/java config, overrides, interceptors, validators, and converters.',
+      'Backoffice config': 'Document Backoffice cockpit config, editor area/list view, permissions, and validation.',
+      'System update impact': 'Capture update running system, initialization risks, cloud deployment, and rollback.'
+    },
+    testing: ['Run unit/integration tests, system update validation, impex import, Backoffice/HAC checks, and storefront/API regression.', 'Validate cronjob schedule, failure handling, and data migration behavior.'],
+    risks: ['Type-system changes can require careful system update.', 'Impex can overwrite environment-specific data.', 'Cronjobs can affect performance or duplicate processing.', 'Spring overrides can change standard behavior.'],
+    support: ['Monitor Backoffice, HAC/FlexibleSearch, cronjob history, application logs, and deployment pipeline logs.', 'Support needs extension, item type, impex, cronjob/service, and rollback approach.']
+  },
+  'sap-rap': {
+    checklistDetails: {
+      'Root entity': 'Capture interface/projection CDS, root entity, composition tree, and keys.',
+      'Behavior pool': 'Document behavior pool class, validations, determinations, actions, and save sequence.',
+      Annotations: 'Capture UI annotations, facets, line items, field groups, value helps, and side effects.',
+      'Service binding': 'Document service definition, binding type, publication status, and preview URL.',
+      'Draft enabled': 'Document draft table, lock behavior, ETags, activation, and discard/save flow.',
+      'Authorization master': 'Capture authorization master, instance checks, feature control, and role dependencies.',
+      'Projection view': 'Document projection behavior, exposed fields/actions, and consumption restrictions.'
+    },
+    testing: ['Test create/edit/delete, draft save/activate/discard, actions, validations, side effects, authorization, and service publication.', 'Validate Fiori Elements rendering and OData calls.'],
+    risks: ['Draft/lock handling can block concurrent users.', 'Projection mismatch can expose or hide fields/actions.', 'Authorization/feature control gaps can expose operations.', 'Annotation changes can alter UI behavior.'],
+    support: ['Monitor service binding, ADT activation, Gateway/OData errors, application logs, and authorization failures.', 'Support needs root entity, behavior pool, service binding, and published URL.']
+  },
+  'sap-bw': {
+    checklistDetails: {
+      'Provider/model': 'Capture InfoProvider/Datasphere model, semantic usage, and ownership.',
+      'Transformation logic': 'Document transformation, routines, calculated fields, currency/unit handling, and filters.',
+      'Query name': 'Capture query/view, variables, restricted/calculated key figures, and consuming reports.',
+      'Load schedule': 'Document process chain/task chain, dependency, frequency, SLA, and restart point.',
+      'Source system': 'Capture source system, connection, extractor, delta method, and dependency.',
+      'Reconciliation checks': 'Define row counts, totals, duplicate checks, exception reports, and acceptance thresholds.',
+      'Analysis authorizations': 'Document roles, spaces, analytic privileges, and sensitive data restrictions.'
+    },
+    testing: ['Validate extraction/load, transformations, query output, reconciliation totals, scheduling, and authorization.', 'Compare source/target record counts and key figures.'],
+    risks: ['Delta handling can miss or duplicate records.', 'Transformation/routine changes can alter reported KPIs.', 'Schedule dependencies can delay business reporting.', 'Authorization gaps can expose analytics data.'],
+    support: ['Monitor process chains/task chains, load logs, failed requests, reconciliation reports, and query performance.', 'Support needs model/provider, source, schedule, query, and reconciliation procedure.']
+  },
+  'sap-mdg': {
+    checklistDetails: {
+      'Entity type': 'Capture master data domain, entity type, attributes, and key fields.',
+      'CR type': 'Document change request type, steps, statuses, priorities, and UI process.',
+      'BRF+ rules': 'Capture validation, derivation, duplicate check, and decision-table logic.',
+      'Replication target': 'Document target systems, DRF model, key mapping, outbound status, and reprocess.',
+      'Workflow path': 'Capture approval steps, agent determination, rejection/rework, escalation, and SLAs.',
+      'UI configuration': 'Document MDG UI, field properties, feeder classes, and user interaction.',
+      'Governance roles': 'Document requester/approver/steward roles, authorizations, and audit needs.'
+    },
+    testing: ['Test create/change CR, workflow approval/rejection, validation/derivation rules, duplicate checks, replication, and audit trail.', 'Validate role-based UI and governance responsibilities.'],
+    risks: ['Incorrect BRF+ rules can block or corrupt master data.', 'Workflow agent determination can route to wrong approver.', 'Replication/key mapping failures can desync target systems.', 'Governance role gaps can break compliance.'],
+    support: ['Monitor change request status, workflow logs, DRF/outbound replication, key mapping, and validation errors.', 'Support needs CR type, entity type, workflow path, replication target, and responsible steward.']
+  }
+};
+
 const initialForm = {
   title: 'Customer Account Update Interface',
   owner: 'SAP Delivery Team',
@@ -503,6 +647,10 @@ function buildProcessFlowText(form, area, screenshots) {
 function buildAutomaticTemplateOutline(form, area) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const designSections = area.sections.map((section, index) => `${index + 1}. ${section}`).join('\n');
+  const profile = areaDocumentProfiles[area.id];
+  const checklist = Object.keys(profile?.checklistDetails || {})
+    .map((item) => `- ${item}: ${profile.checklistDetails[item]}`)
+    .join('\n');
 
   return [
     `Document type: ${selectedFormat.name}`,
@@ -525,6 +673,9 @@ function buildAutomaticTemplateOutline(form, area) {
     '13. Risks, Assumptions, And Open Items',
     '14. Support Notes',
     '',
+    'Area-specific checklist focus:',
+    checklist || area.prompts.map((prompt) => `- ${prompt}`).join('\n'),
+    '',
     'Generation rule: populate sections from the selected solution area, code snippet, screenshot evidence, process notes, and testing/risk inputs.'
   ].join('\n');
 }
@@ -544,6 +695,41 @@ function getTemplateGuidance(form, area) {
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
+}
+
+function getChecklistRows(area) {
+  const profile = areaDocumentProfiles[area.id];
+  return area.prompts.map((prompt) => ({
+    item: prompt,
+    detail: profile?.checklistDetails?.[prompt] || 'Capture the relevant detail for this solution area and confirm it against code/screenshots.'
+  }));
+}
+
+function buildAreaTestingStrategy(area, form, screenshots) {
+  const profile = areaDocumentProfiles[area.id];
+  const evidence = collectEvidenceSummary(screenshots);
+  const base = profile?.testing || ['Validate happy path, failure path, authorization, deployment, and support monitoring for this solution area.'];
+  return [
+    ...base,
+    safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : '',
+    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Evidence to attach: ${evidence[0]}` : ''
+  ].filter(Boolean);
+}
+
+function buildAreaRiskControls(area, form) {
+  const profile = areaDocumentProfiles[area.id];
+  return [
+    ...(profile?.risks || ['Confirm solution-specific operational, security, transport, and data risks.']),
+    safeLine(form.risks) ? `Project-specific risk/open item: ${safeLine(form.risks)}` : ''
+  ].filter(Boolean);
+}
+
+function buildAreaSupportNotes(area) {
+  const profile = areaDocumentProfiles[area.id];
+  return profile?.support || [
+    `Monitor the relevant ${area.name} runtime logs, deployment status, authorization failures, and business process outcomes.`,
+    'Support should know the owner, object names, monitoring location, recovery steps, and escalation path.'
+  ];
 }
 
 function buildScreenshotUnderstanding(shot, area, index) {
@@ -597,13 +783,16 @@ function buildDocumentation(form, area, screenshots) {
     ? screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')
     : '- No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.';
 
-  const areaPrompts = area.prompts.map((prompt) => `- ${prompt}: _Add detail_`).join('\n');
+  const areaPrompts = getChecklistRows(area).map((row) => `- ${row.item}: ${row.detail}`).join('\n');
   const sectionDetails = area.sections.map((section) => {
     const insights = buildSectionInsights(area, section, form, screenshots);
     return `### ${section}\n${bulletList(insights)}`;
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
   const processFlow = buildProcessFlowText(form, area, screenshots);
+  const areaTesting = bulletList(buildAreaTestingStrategy(area, form, screenshots));
+  const areaRisks = bulletList(buildAreaRiskControls(area, form));
+  const areaSupport = bulletList(buildAreaSupportNotes(area));
 
   return `# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
@@ -619,14 +808,9 @@ function buildDocumentation(form, area, screenshots) {
     `## 10. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
     `## 11. Screenshot Evidence\n${evidence}\n\n` +
     `## 12. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 13. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
-    `## 14. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
-    `## 15. Support Notes\n${bulletList([
-      'Primary support team: _Add team or queue_',
-      'Monitoring location: _Add SAP app, BTP cockpit, Azure run history, or commerce console path_',
-      'Recovery action: _Add restart, reprocess, rollback, or manual correction steps_',
-      'Escalation path: _Add technical owner and business owner_'
-    ])}\n`;
+    `## 13. Testing And Validation\n${areaTesting}\n\n` +
+    `## 14. Risks, Assumptions, And Open Items\n${areaRisks}\n\n` +
+    `## 15. Support Notes\n${areaSupport}\n`;
 }
 
 function buildWordDocument(form, area, screenshots) {
@@ -644,11 +828,14 @@ function buildWordDocument(form, area, screenshots) {
       <tr><th>Template guidance</th><td>${escapeHtml(templateGuidance)}</td></tr>
     `
     : `<tr><th>Template decision</th><td>Create automatically</td></tr><tr><th>Generated template structure</th><td>${escapeHtml(templateGuidance)}</td></tr>`;
-  const areaPromptRows = area.prompts.map((prompt) => `<tr><td>${escapeHtml(prompt)}</td><td>Add detail</td></tr>`).join('');
+  const areaPromptRows = getChecklistRows(area).map((row) => `<tr><td>${escapeHtml(row.item)}</td><td>${escapeHtml(row.detail)}</td></tr>`).join('');
   const technicalSections = area.sections.map((section) => `
     <h3>${escapeHtml(section)}</h3>
     ${htmlList(buildSectionInsights(area, section, form, screenshots))}
   `).join('');
+  const areaTesting = buildAreaTestingStrategy(area, form, screenshots);
+  const areaRisks = buildAreaRiskControls(area, form);
+  const areaSupport = buildAreaSupportNotes(area);
   const screenshotBlocks = screenshots.length
     ? screenshots.map((shot, index) => {
       const observations = getScreenshotObservations(shot, area);
@@ -744,18 +931,13 @@ function buildWordDocument(form, area, screenshots) {
     ${screenshotBlocks}
 
     <h2>12. Testing And Validation</h2>
-    ${htmlParagraph(form.testingNotes, 'Document test scenarios, test data, expected results, actual results, and linked defects.')}
+    ${htmlList(areaTesting)}
 
     <h2>13. Risks, Assumptions, And Open Items</h2>
-    ${htmlParagraph(form.risks, 'List risks, assumptions, dependencies, and follow-up actions.')}
+    ${htmlList(areaRisks)}
 
     <h2>14. Support Notes</h2>
-    ${htmlList([
-      'Primary support team: Add team or queue',
-      'Monitoring location: Add SAP app, BTP cockpit, Azure run history, or commerce console path',
-      'Recovery action: Add restart, reprocess, rollback, or manual correction steps',
-      'Escalation path: Add technical owner and business owner'
-    ])}
+    ${htmlList(areaSupport)}
   </body>
 </html>`;
 }
@@ -1042,6 +1224,15 @@ function App() {
             <ul>
               {selectedArea.sections.map((section) => (
                 <li key={section}>{section}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="area-sections">
+            <strong>Testing focus</strong>
+            <ul>
+              {buildAreaTestingStrategy(selectedArea, form, screenshots).slice(0, 4).map((item) => (
+                <li key={item}>{item}</li>
               ))}
             </ul>
           </div>
