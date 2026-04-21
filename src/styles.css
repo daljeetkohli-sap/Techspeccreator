@@ -449,6 +449,73 @@ h1 {
   line-height: 1.4;
 }
 
+.brand-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.fair-preview,
+.customer-preview {
+  min-height: 92px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #c9d2d9;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.fair-preview {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.fair-preview strong {
+  width: fit-content;
+  padding: 7px 11px;
+  background: #12343b;
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.fair-preview span,
+.customer-preview span {
+  color: #5a6b77;
+  font-weight: 850;
+}
+
+.customer-preview {
+  justify-content: space-between;
+}
+
+.customer-preview.empty {
+  justify-content: center;
+  border-style: dashed;
+}
+
+.customer-preview img {
+  max-width: 120px;
+  max-height: 64px;
+  object-fit: contain;
+}
+
+.customer-preview div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.customer-preview strong {
+  overflow-wrap: anywhere;
+}
+
 .template-summary strong,
 .template-summary span {
   overflow-wrap: anywhere;
@@ -603,6 +670,7 @@ h1 {
 
   .signal-strip,
   .field-grid,
+  .brand-preview,
   .template-choice-grid {
     grid-template-columns: 1fr;
   }
