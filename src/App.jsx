@@ -110,6 +110,7 @@ const initialForm = {
     'Run happy path, missing mandatory field, duplicate message, and authorization failure scenarios. Attach run history, payload samples, and SAP application logs as evidence.',
   risks:
     'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.',
+  templateMode: 'auto',
   templateName: '',
   templateType: '',
   templateOutline: ''
@@ -458,6 +459,47 @@ function buildProcessFlowText(form, area, screenshots) {
     .join('\n');
 }
 
+function buildAutomaticTemplateOutline(form, area) {
+  const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const designSections = area.sections.map((section, index) => `${index + 1}. ${section}`).join('\n');
+
+  return [
+    `Document type: ${selectedFormat.name}`,
+    `Solution area: ${area.name}`,
+    '',
+    'Recommended section order:',
+    '1. Purpose',
+    '2. Generated Implementation Summary',
+    '3. Process Flow',
+    '4. Business Process',
+    '5. Template Alignment',
+    '6. Solution Area Checklist',
+    '7. Technical Design',
+    designSections,
+    '8. Configuration Notes',
+    '9. Code Understanding',
+    '10. Code Snippet',
+    '11. Screenshot Evidence And Technical Interpretation',
+    '12. Testing And Validation',
+    '13. Risks, Assumptions, And Open Items',
+    '14. Support Notes',
+    '',
+    'Generation rule: populate sections from the selected solution area, code snippet, screenshot evidence, process notes, and testing/risk inputs.'
+  ].join('\n');
+}
+
+function getTemplateMode(form) {
+  return form.templateMode === 'upload' ? 'upload' : 'auto';
+}
+
+function getTemplateGuidance(form, area) {
+  if (getTemplateMode(form) === 'upload') {
+    return safeLine(form.templateOutline) || 'Uploaded template selected. Paste required headings, section order, mandatory tables, approval fields, or style rules for stronger alignment.';
+  }
+
+  return buildAutomaticTemplateOutline(form, area);
+}
+
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
@@ -502,9 +544,11 @@ function getScreenshotObservations(shot, area, contextOverride) {
 
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
-  const templateReference = safeLine(form.templateName)
-    ? `- Template file: ${safeLine(form.templateName)} (${safeLine(form.templateType) || 'uploaded template'})\n- Template guidance:\n${safeLine(form.templateOutline) || '_Paste the required headings, document structure, style notes, or acceptance criteria from the template._'}`
-    : '- No template uploaded. Use the generated standard technical specification structure.';
+  const templateMode = getTemplateMode(form);
+  const templateGuidance = getTemplateGuidance(form, area);
+  const templateReference = templateMode === 'upload'
+    ? `- Template decision: Use my template\n- Template file: ${safeLine(form.templateName) || 'Template not uploaded yet'} (${safeLine(form.templateType) || 'PDF/DOC/DOCX'})\n- Template guidance used:\n${templateGuidance}`
+    : `- Template decision: Create automatically\n- Generated template structure:\n${templateGuidance}`;
   const evidence = screenshots.length
     ? screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')
     : '- Add screenshots of the app screen, SAP transaction, BTP cockpit page, workflow run, or code review evidence.';
@@ -549,13 +593,16 @@ function buildWordDocument(form, area, screenshots) {
   const codeSignals = detectCodeSignals(form.codeSnippet, area);
   const implementationSummary = buildImplementationSummary(form, area, screenshots);
   const processFlowSteps = buildProcessFlowSteps(form, area, screenshots);
-  const templateRows = safeLine(form.templateName)
+  const templateMode = getTemplateMode(form);
+  const templateGuidance = getTemplateGuidance(form, area);
+  const templateRows = templateMode === 'upload'
     ? `
+      <tr><th>Template decision</th><td>Use my template</td></tr>
       <tr><th>Template file</th><td>${escapeHtml(form.templateName)}</td></tr>
       <tr><th>Template type</th><td>${escapeHtml(form.templateType || 'Uploaded template')}</td></tr>
-      <tr><th>Template guidance</th><td>${escapeHtml(safeLine(form.templateOutline) || 'No headings or format guidance pasted yet.')}</td></tr>
+      <tr><th>Template guidance</th><td>${escapeHtml(templateGuidance)}</td></tr>
     `
-    : '<tr><th>Template</th><td>No template uploaded. Standard technical specification structure used.</td></tr>';
+    : `<tr><th>Template decision</th><td>Create automatically</td></tr><tr><th>Generated template structure</th><td>${escapeHtml(templateGuidance)}</td></tr>`;
   const areaPromptRows = area.prompts.map((prompt) => `<tr><td>${escapeHtml(prompt)}</td><td>Add detail</td></tr>`).join('');
   const technicalSections = area.sections.map((section) => `
     <h3>${escapeHtml(section)}</h3>
@@ -635,9 +682,7 @@ function buildWordDocument(form, area, screenshots) {
     ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
 
     <h2>5. Template Alignment</h2>
-    ${safeLine(form.templateOutline)
-      ? htmlParagraph(form.templateOutline, 'Template headings and style guidance were supplied.')
-      : htmlParagraph('', safeLine(form.templateName) ? 'Template uploaded. Paste headings or key format rules into Template Guidance for stronger alignment.' : 'No uploaded template was supplied. Standard format used.')}
+    ${htmlParagraph(templateGuidance, 'Standard generated technical specification structure used.')}
 
     <h2>6. Solution Area Checklist</h2>
     <table><tr><th>Item</th><th>Detail</th></tr>${areaPromptRows}</table>
@@ -711,6 +756,11 @@ function App() {
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function setTemplateMode(mode) {
+    setForm((current) => ({ ...current, templateMode: mode }));
+    showToast(mode === 'upload' ? 'Use my template selected' : 'Automatic template selected');
   }
 
   async function handleScreenshotUpload(event) {
@@ -797,8 +847,12 @@ function App() {
 
     const extension = file.name.split('.').pop()?.toLowerCase();
     const templateType = extension ? extension.toUpperCase() : file.type || 'Template';
-    updateForm('templateName', file.name);
-    updateForm('templateType', templateType);
+    setForm((current) => ({
+      ...current,
+      templateMode: 'upload',
+      templateName: file.name,
+      templateType
+    }));
 
     try {
       const text = await file.text();
@@ -810,7 +864,7 @@ function App() {
 
       if (readableText.length > 120 && !['pdf', 'docx'].includes(extension)) {
         updateForm('templateOutline', readableText);
-        showToast('Template text loaded');
+        showToast('Template text loaded and will be used');
       } else {
         showToast('Template uploaded. Paste key headings if needed.');
       }
@@ -1009,31 +1063,62 @@ function App() {
               <section className="input-section">
                 <div className="section-row">
                   <div>
-                    <h3>Template</h3>
-                    <p className="helper-copy">Upload a PDF or Word template, then add the required headings or format rules for the generated Word spec.</p>
+                    <h3>Template Source</h3>
+                    <p className="helper-copy">Do you want to use your template, or should the app create one automatically?</p>
                   </div>
-                  <label className="upload-button">
-                    Upload template
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      onChange={handleTemplateUpload}
-                    />
-                  </label>
                 </div>
-                <div className="template-summary">
-                  <strong>{form.templateName || 'No template uploaded'}</strong>
-                  <span>{form.templateType || 'PDF, DOC, or DOCX accepted'}</span>
+
+                <div className="template-choice-grid" role="group" aria-label="Template source">
+                  <button
+                    type="button"
+                    className={`template-choice ${getTemplateMode(form) === 'auto' ? 'selected' : ''}`}
+                    onClick={() => setTemplateMode('auto')}
+                  >
+                    <strong>Create automatically</strong>
+                    <span>Generate a standard tech-spec template from the selected area, code snippet, screenshots, and process notes.</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`template-choice ${getTemplateMode(form) === 'upload' ? 'selected' : ''}`}
+                    onClick={() => setTemplateMode('upload')}
+                  >
+                    <strong>Use my template</strong>
+                    <span>Upload a PDF/Word template and use its headings, required tables, and style rules.</span>
+                  </button>
                 </div>
-                <label>
-                  Template guidance
-                  <textarea
-                    rows={5}
-                    value={form.templateOutline}
-                    onChange={(event) => updateForm('templateOutline', event.target.value)}
-                    placeholder="Paste template headings, section order, style requirements, mandatory tables, approval fields, or acceptance criteria here."
-                  />
-                </label>
+
+                {getTemplateMode(form) === 'upload' ? (
+                  <>
+                    <div className="section-row">
+                      <div className="template-summary">
+                        <strong>{form.templateName || 'No template uploaded'}</strong>
+                        <span>{form.templateType || 'PDF, DOC, or DOCX accepted'}</span>
+                      </div>
+                      <label className="upload-button">
+                        Upload template
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          onChange={handleTemplateUpload}
+                        />
+                      </label>
+                    </div>
+                    <label>
+                      Template guidance
+                      <textarea
+                        rows={5}
+                        value={form.templateOutline}
+                        onChange={(event) => updateForm('templateOutline', event.target.value)}
+                        placeholder="Paste template headings, section order, style requirements, mandatory tables, approval fields, or acceptance criteria here."
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <div className="analysis-box">
+                    <strong>Automatic template that will be used</strong>
+                    <pre>{buildAutomaticTemplateOutline(form, selectedArea)}</pre>
+                  </div>
+                )}
               </section>
 
               <section className="input-section">
