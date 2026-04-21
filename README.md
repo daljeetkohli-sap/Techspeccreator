@@ -1,6 +1,6 @@
-# TechDoc Studio
+# Techspeccreator
 
-A local React/Vite app for creating technical documentation from implementation notes, screenshots, and code snippets.
+TechDoc Studio is a local React/Vite app for creating technical specifications for SAP developments from implementation notes, screenshots, and code snippets.
 
 ## What It Does
 
