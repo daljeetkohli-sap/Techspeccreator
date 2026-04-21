@@ -16,16 +16,16 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Uploads screenshot evidence and lets you add captions, visible text, screenshot type, and reviewer notes for each figure.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured Word-compatible `.doc` file with the required generic headers plus dynamic solution-area technical sections and area-specific validation guidance.
+- Generates a structured `.docx` Word file with the required generic headers, embedded FAIR/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
-- Downloads a Word-compatible `.doc` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
+- Downloads a real `.docx` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.
 
 ## Developer Handoff
 
 - Use `BETA_TESTING.md` for the beta test checklist.
 - The app is frontend-only and does not require backend services.
-- Screenshot images stay in the active browser session; exported Word documents contain embedded screenshots, figure descriptions, captured visible text, and generated technical interpretation.
+- Screenshot images stay in the active browser session; exported `.docx` documents contain embedded logos, screenshots, figure descriptions, captured visible text, and generated technical interpretation.
 - The app does not perform OCR or server-side AI vision. It creates the best technical spec when testers paste key visible screenshot text, object names, status messages, errors, message IDs, or transaction details into each screenshot card.
 - The app can read plain text from some uploaded template files, but it does not deeply parse every PDF/DOCX layout in-browser. For best template alignment, testers should paste the required headings, section order, and style rules into Template Guidance after uploading the template.
 - Keep `node_modules/` and `dist/` out of Git. They are ignored by `.gitignore`.

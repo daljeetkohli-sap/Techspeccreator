@@ -37,7 +37,7 @@ npm run build
 - Verify the Process Flow section infers trigger/input, parse/map, validation, integration, data update, success outcome, exception path, and monitoring/support steps from the supplied code and screenshot evidence.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Preview opens, status text appears, and document text is copied to the clipboard.
-- Use Download Word and confirm the `.doc` file opens in Microsoft Word with all required headers, inferred implementation summary, populated technical design sections, process flow, code, screenshot images, template alignment, technical interpretation, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover included. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
+- Use Download Word and confirm the `.docx` file opens in Microsoft Word and Google Docs with embedded FAIR/customer logos, all required headers, inferred implementation summary, populated technical design sections, process flow, code, screenshot images, template alignment, technical interpretation, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover included. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
 - Test desktop, tablet, and mobile browser widths for readable layout and no text overlap.
@@ -45,7 +45,7 @@ npm run build
 ## Known Constraints
 
 - Screenshot files are used locally in the browser session and are not uploaded to a server.
-- Generated output downloads as a Word-compatible `.doc` file.
+- Generated output downloads as a real `.docx` file for better Word and Google Docs compatibility.
 - Screenshot images are embedded into the downloaded Word file when uploaded in the current browser session.
 - PDF/DOCX templates are referenced and guided by the Template Guidance field; the frontend does not deeply parse every proprietary template format.
 - Screenshot understanding depends on the screenshot type, caption, pasted visible text, and reviewer notes because this frontend-only version does not perform OCR.
