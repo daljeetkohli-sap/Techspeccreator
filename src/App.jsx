@@ -953,14 +953,6 @@ function App() {
           </p>
         </div>
 
-        <div className="hero-actions" aria-label="Documentation actions">
-          <button type="button" onClick={copyDocumentation} title="Copy document text">
-            Copy doc
-          </button>
-          <button type="button" className="secondary-button" onClick={exportWord} title="Download Word document">
-            Download Word
-          </button>
-        </div>
       </section>
 
       <section className="signal-strip">
@@ -968,13 +960,6 @@ function App() {
         <div><strong>{stats.screenshots}</strong><span>Screenshots</span></div>
         <div><strong>{stats.completedFields}/7</strong><span>Inputs filled</span></div>
         <div><strong>{stats.sections}</strong><span>Doc sections</span></div>
-      </section>
-
-      <section className="action-help" aria-label="Export help">
-        <strong>Copy doc</strong>
-        <span>copies the generated specification text and opens Preview.</span>
-        <strong>Download Word</strong>
-        <span>saves a Word-compatible .doc file with the generated spec, process flow, code analysis, and screenshots.</span>
       </section>
 
       <section className="workspace-grid">

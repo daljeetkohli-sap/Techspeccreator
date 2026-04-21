@@ -136,7 +136,6 @@ h1 {
   line-height: 1.6;
 }
 
-.hero-actions,
 .toolbar-actions,
 .card-actions {
   display: flex;
@@ -189,7 +188,6 @@ h1 {
   font-weight: 780;
 }
 
-.action-help,
 .action-status {
   display: flex;
   flex-wrap: wrap;
@@ -202,10 +200,6 @@ h1 {
   background: #f8fbfc;
   color: #2d3c46;
   line-height: 1.45;
-}
-
-.action-help strong {
-  color: #17343b;
 }
 
 .action-status {
@@ -592,7 +586,6 @@ h1 {
   .topbar,
   .section-row,
   .preview-toolbar,
-  .hero-actions,
   .template-summary {
     align-items: stretch;
     flex-direction: column;
@@ -604,7 +597,6 @@ h1 {
   .toolbar-actions button,
   .card-actions,
   .card-actions button,
-  .hero-actions button,
   .upload-button {
     width: 100%;
   }
