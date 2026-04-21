@@ -230,7 +230,8 @@ h1 {
 
 .panel-heading p,
 .preview-toolbar p,
-.format-picker small {
+.format-picker small,
+.helper-copy {
   margin-top: 4px;
   color: #5a6b77;
   line-height: 1.45;
@@ -362,6 +363,27 @@ h1 {
   border: 1px solid #c9d2d9;
   border-radius: 8px;
   background: #eef7f5;
+}
+
+.template-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #c9d2d9;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.template-summary strong,
+.template-summary span {
+  overflow-wrap: anywhere;
+}
+
+.template-summary span {
+  color: #5a6b77;
+  font-weight: 800;
 }
 
 .analysis-box strong {
@@ -505,7 +527,8 @@ h1 {
   .topbar,
   .section-row,
   .preview-toolbar,
-  .hero-actions {
+  .hero-actions,
+  .template-summary {
     align-items: stretch;
     flex-direction: column;
   }

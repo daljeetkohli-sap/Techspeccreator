@@ -109,7 +109,10 @@ const initialForm = {
   testingNotes:
     'Run happy path, missing mandatory field, duplicate message, and authorization failure scenarios. Attach run history, payload samples, and SAP application logs as evidence.',
   risks:
-    'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.'
+    'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.',
+  templateName: '',
+  templateType: '',
+  templateOutline: ''
 };
 
 function loadSavedWorkspace() {
@@ -121,17 +124,27 @@ function loadSavedWorkspace() {
   }
 }
 
-function createScreenshotRecord(file) {
+function createScreenshotRecord(file, dataUrl) {
   return {
     id: crypto.randomUUID(),
     name: file.name,
     size: file.size,
-    url: URL.createObjectURL(file),
+    url: dataUrl,
+    dataUrl,
     screenType: 'Test evidence',
     caption: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '),
     note: '',
     extractedText: ''
   };
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatBytes(bytes) {
@@ -148,6 +161,24 @@ function bulletList(items) {
   return items.filter(Boolean).map((item) => `- ${item}`).join('\n');
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function htmlParagraph(value, fallback) {
+  const text = safeLine(value) || fallback;
+  return `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`;
+}
+
+function htmlList(items) {
+  return `<ul>${items.filter(Boolean).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+
 function slugify(value) {
   return (safeLine(value) || 'technical-specification')
     .toLowerCase()
@@ -157,7 +188,6 @@ function slugify(value) {
 
 function detectCodeSignals(code, area) {
   const text = code || '';
-  const lower = text.toLowerCase();
   const signals = [];
 
   const checks = [
@@ -195,6 +225,13 @@ function buildCodeUnderstanding(form, area) {
 
 function buildScreenshotUnderstanding(shot, area, index) {
   const context = [shot.caption, shot.note, shot.extractedText, shot.name, shot.screenType].map(safeLine).join(' ').toLowerCase();
+  const observations = getScreenshotObservations(shot, area, context);
+
+  return `### Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}\n${bulletList(observations)}`;
+}
+
+function getScreenshotObservations(shot, area, contextOverride) {
+  const context = contextOverride ?? [shot.caption, shot.note, shot.extractedText, shot.name, shot.screenType].map(safeLine).join(' ').toLowerCase();
   const observations = [];
 
   if (shot.screenType) observations.push(`Screenshot type: ${shot.screenType}.`);
@@ -220,11 +257,14 @@ function buildScreenshotUnderstanding(shot, area, index) {
     observations.push(`Technical interpretation: review this figure against the ${area.name} design and document what object, configuration, test result, or runtime state it proves.`);
   }
 
-  return `### Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}\n${bulletList(observations)}`;
+  return observations;
 }
 
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const templateReference = safeLine(form.templateName)
+    ? `- Template file: ${safeLine(form.templateName)} (${safeLine(form.templateType) || 'uploaded template'})\n- Template guidance:\n${safeLine(form.templateOutline) || '_Paste the required headings, document structure, style notes, or acceptance criteria from the template._'}`
+    : '- No template uploaded. Use the generated standard technical specification structure.';
   const evidence = screenshots.length
     ? screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')
     : '- Add screenshots of the app screen, SAP transaction, BTP cockpit page, workflow run, or code review evidence.';
@@ -239,21 +279,135 @@ function buildDocumentation(form, area, screenshots) {
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
     `## 1. Purpose\n${safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'}\n\n` +
     `## 2. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
-    `## 3. Solution Area Checklist\n${areaPrompts}\n\n` +
-    `## 4. Technical Design\n${sectionDetails}\n\n` +
-    `## 5. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
-    `## 6. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
-    `## 7. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
-    `## 8. Screenshot Evidence\n${evidence}\n\n` +
-    `## 9. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 10. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
-    `## 11. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
-    `## 12. Support Notes\n${bulletList([
+    `## 3. Template Reference\n${templateReference}\n\n` +
+    `## 4. Solution Area Checklist\n${areaPrompts}\n\n` +
+    `## 5. Technical Design\n${sectionDetails}\n\n` +
+    `## 6. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
+    `## 7. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
+    `## 8. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
+    `## 9. Screenshot Evidence\n${evidence}\n\n` +
+    `## 10. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
+    `## 11. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
+    `## 12. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
+    `## 13. Support Notes\n${bulletList([
       'Primary support team: _Add team or queue_',
       'Monitoring location: _Add SAP app, BTP cockpit, Azure run history, or commerce console path_',
       'Recovery action: _Add restart, reprocess, rollback, or manual correction steps_',
       'Escalation path: _Add technical owner and business owner_'
     ])}\n`;
+}
+
+function buildWordDocument(form, area, screenshots) {
+  const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const codeSignals = detectCodeSignals(form.codeSnippet, area);
+  const templateRows = safeLine(form.templateName)
+    ? `
+      <tr><th>Template file</th><td>${escapeHtml(form.templateName)}</td></tr>
+      <tr><th>Template type</th><td>${escapeHtml(form.templateType || 'Uploaded template')}</td></tr>
+      <tr><th>Template guidance</th><td>${escapeHtml(safeLine(form.templateOutline) || 'No headings or format guidance pasted yet.')}</td></tr>
+    `
+    : '<tr><th>Template</th><td>No template uploaded. Standard technical specification structure used.</td></tr>';
+  const areaPromptRows = area.prompts.map((prompt) => `<tr><td>${escapeHtml(prompt)}</td><td>Add detail</td></tr>`).join('');
+  const technicalSections = area.sections.map((section) => `
+    <h3>${escapeHtml(section)}</h3>
+    <ul>
+      <li>Current state: Describe what was built or configured.</li>
+      <li>Evidence: Reference screenshot, object name, or code line.</li>
+    </ul>
+  `).join('');
+  const screenshotBlocks = screenshots.length
+    ? screenshots.map((shot, index) => {
+      const observations = getScreenshotObservations(shot, area);
+      return `
+        <div class="figure">
+          <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
+          ${shot.dataUrl ? `<img src="${shot.dataUrl}" alt="${escapeHtml(shot.caption || shot.name)}">` : ''}
+          <table>
+            <tr><th>Type</th><td>${escapeHtml(shot.screenType)}</td></tr>
+            <tr><th>File</th><td>${escapeHtml(shot.name)} (${formatBytes(shot.size)})</td></tr>
+            <tr><th>Visible text</th><td>${escapeHtml(safeLine(shot.extractedText) || 'Not captured')}</td></tr>
+            <tr><th>Reviewer notes</th><td>${escapeHtml(safeLine(shot.note) || 'Not captured')}</td></tr>
+          </table>
+          <h4>Technical Interpretation</h4>
+          ${htmlList(observations)}
+        </div>
+      `;
+    }).join('')
+    : '<p>No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.</p>';
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>${escapeHtml(safeLine(form.title) || 'Technical Documentation')}</title>
+    <style>
+      body { font-family: Calibri, Arial, sans-serif; color: #1f2933; line-height: 1.45; }
+      h1 { color: #12343b; font-size: 26pt; margin-bottom: 8px; }
+      h2 { color: #1f5d6c; border-bottom: 1px solid #b7c7cf; padding-bottom: 4px; margin-top: 24px; }
+      h3 { color: #243b4a; margin-top: 16px; }
+      table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; }
+      th, td { border: 1px solid #c8d4da; padding: 8px; vertical-align: top; text-align: left; }
+      th { background: #e8f2f4; width: 28%; }
+      pre { background: #f4f7f8; border: 1px solid #c8d4da; padding: 12px; white-space: pre-wrap; font-family: Consolas, monospace; }
+      img { max-width: 620px; width: 100%; height: auto; border: 1px solid #c8d4da; margin: 8px 0 12px; }
+      .figure { page-break-inside: avoid; margin-bottom: 22px; }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(safeLine(form.title) || 'Technical Documentation')}</h1>
+    <table>
+      <tr><th>Document type</th><td>${escapeHtml(selectedFormat.name)}</td></tr>
+      <tr><th>Solution area</th><td>${escapeHtml(area.name)}</td></tr>
+      <tr><th>Owner</th><td>${escapeHtml(safeLine(form.owner) || 'TBD')}</td></tr>
+      <tr><th>Systems</th><td>${escapeHtml(safeLine(form.system) || 'TBD')}</td></tr>
+      <tr><th>Generated</th><td>${escapeHtml(new Date().toLocaleString())}</td></tr>
+      ${templateRows}
+    </table>
+
+    <h2>1. Purpose</h2>
+    ${htmlParagraph(form.overview, 'Describe why this documentation exists and what work was completed.')}
+
+    <h2>2. Business Process</h2>
+    ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
+
+    <h2>3. Template Alignment</h2>
+    ${safeLine(form.templateOutline)
+      ? htmlParagraph(form.templateOutline, 'Template headings and style guidance were supplied.')
+      : htmlParagraph('', safeLine(form.templateName) ? 'Template uploaded. Paste headings or key format rules into Template Guidance for stronger alignment.' : 'No uploaded template was supplied. Standard format used.')}
+
+    <h2>4. Solution Area Checklist</h2>
+    <table><tr><th>Item</th><th>Detail</th></tr>${areaPromptRows}</table>
+
+    <h2>5. Technical Design</h2>
+    ${technicalSections}
+
+    <h2>6. Configuration Notes</h2>
+    ${htmlParagraph(form.configNotes, 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.')}
+
+    <h2>7. Code Understanding</h2>
+    ${htmlList(codeSignals)}
+
+    <h2>8. Code Snippet</h2>
+    <pre>${escapeHtml(form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')}</pre>
+
+    <h2>9. Screenshot Evidence And Technical Interpretation</h2>
+    ${screenshotBlocks}
+
+    <h2>10. Testing And Validation</h2>
+    ${htmlParagraph(form.testingNotes, 'Document test scenarios, test data, expected results, actual results, and linked defects.')}
+
+    <h2>11. Risks, Assumptions, And Open Items</h2>
+    ${htmlParagraph(form.risks, 'List risks, assumptions, dependencies, and follow-up actions.')}
+
+    <h2>12. Support Notes</h2>
+    ${htmlList([
+      'Primary support team: Add team or queue',
+      'Monitoring location: Add SAP app, BTP cockpit, Azure run history, or commerce console path',
+      'Recovery action: Add restart, reprocess, rollback, or manual correction steps',
+      'Escalation path: Add technical owner and business owner'
+    ])}
+  </body>
+</html>`;
 }
 
 function App() {
@@ -277,7 +431,7 @@ function App() {
       words,
       screenshots: screenshots.length,
       completedFields,
-      sections: selectedArea.sections.length + 8
+      sections: selectedArea.sections.length + 9
     };
   }, [form, generatedDoc, screenshots.length, selectedArea.sections.length]);
 
@@ -294,16 +448,25 @@ function App() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function handleScreenshotUpload(event) {
+  async function handleScreenshotUpload(event) {
     const files = Array.from(event.target.files || []);
     const imageFiles = files.filter((file) => file.type.startsWith('image/'));
     if (!imageFiles.length) {
       showToast('Choose screenshot image files');
       return;
     }
-    setScreenshots((current) => [...current, ...imageFiles.map(createScreenshotRecord)]);
-    event.target.value = '';
-    showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added`);
+
+    try {
+      const records = await Promise.all(
+        imageFiles.map(async (file) => createScreenshotRecord(file, await readFileAsDataUrl(file)))
+      );
+      setScreenshots((current) => [...current, ...records]);
+      showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added`);
+    } catch {
+      showToast('Could not load screenshot image');
+    } finally {
+      event.target.value = '';
+    }
   }
 
   function updateScreenshot(id, field, value) {
@@ -329,8 +492,6 @@ function App() {
 
   function removeScreenshot(id) {
     setScreenshots((current) => {
-      const target = current.find((shot) => shot.id === id);
-      if (target?.url) URL.revokeObjectURL(target.url);
       return current.filter((shot) => shot.id !== id);
     });
     showToast('Screenshot removed');
@@ -338,7 +499,7 @@ function App() {
 
   async function copyDocumentation() {
     await navigator.clipboard.writeText(generatedDoc);
-    showToast('Documentation copied as Markdown');
+    showToast('Documentation text copied');
   }
 
   async function handleCodeFileUpload(event) {
@@ -356,8 +517,39 @@ function App() {
     }
   }
 
-  async function exportMarkdown() {
-    const filename = `${slugify(form.title)}.md`;
+  async function handleTemplateUpload(event) {
+    const [file] = Array.from(event.target.files || []);
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const templateType = extension ? extension.toUpperCase() : file.type || 'Template';
+    updateForm('templateName', file.name);
+    updateForm('templateType', templateType);
+
+    try {
+      const text = await file.text();
+      const readableText = text
+        .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 2500);
+
+      if (readableText.length > 120 && !['pdf', 'docx'].includes(extension)) {
+        updateForm('templateOutline', readableText);
+        showToast('Template text loaded');
+      } else {
+        showToast('Template uploaded. Paste key headings if needed.');
+      }
+    } catch {
+      showToast('Template uploaded. Paste key headings if needed.');
+    } finally {
+      event.target.value = '';
+    }
+  }
+
+  async function exportWord() {
+    const filename = `${slugify(form.title)}.doc`;
+    const wordDocument = buildWordDocument(form, selectedArea, screenshots);
 
     try {
       if ('showSaveFilePicker' in window) {
@@ -365,15 +557,15 @@ function App() {
           suggestedName: filename,
           types: [
             {
-              description: 'Markdown document',
-              accept: { 'text/markdown': ['.md'] }
+              description: 'Word document',
+              accept: { 'application/msword': ['.doc'] }
             }
           ]
         });
         const writable = await handle.createWritable();
-        await writable.write(generatedDoc);
+        await writable.write(wordDocument);
         await writable.close();
-        showToast('Markdown saved');
+        showToast('Word document saved');
         return;
       }
     } catch (error) {
@@ -384,7 +576,7 @@ function App() {
     }
 
     try {
-      const blob = new Blob([generatedDoc], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob(['\ufeff', wordDocument], { type: 'application/msword;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -397,15 +589,14 @@ function App() {
         URL.revokeObjectURL(url);
         link.remove();
       }, 1000);
-      showToast('Markdown download started');
+      showToast('Word download started');
     } catch {
       await copyDocumentation();
-      showToast('Download blocked, copied Markdown instead');
+      showToast('Download blocked, copied document text instead');
     }
   }
 
   function resetWorkspace() {
-    screenshots.forEach((shot) => URL.revokeObjectURL(shot.url));
     setScreenshots([]);
     setForm(initialForm);
     setActiveTab('compose');
@@ -420,16 +611,16 @@ function App() {
           <h1>SAP and cloud delivery documentation from screenshots, notes, and code.</h1>
           <p>
             Capture implementation evidence, select the solution area, paste code, and generate a
-            structured Markdown document for project handover, support, and audits.
+            structured Word document for project handover, support, and audits.
           </p>
         </div>
 
         <div className="hero-actions" aria-label="Documentation actions">
-          <button type="button" onClick={copyDocumentation} title="Copy Markdown">
+          <button type="button" onClick={copyDocumentation} title="Copy document text">
             Copy doc
           </button>
-          <button type="button" className="secondary-button" onClick={exportMarkdown} title="Export Markdown">
-            Download .md
+          <button type="button" className="secondary-button" onClick={exportWord} title="Download Word document">
+            Download Word
           </button>
         </div>
       </section>
@@ -522,6 +713,36 @@ function App() {
                     <input value={form.system} onChange={(event) => updateForm('system', event.target.value)} />
                   </label>
                 </div>
+              </section>
+
+              <section className="input-section">
+                <div className="section-row">
+                  <div>
+                    <h3>Template</h3>
+                    <p className="helper-copy">Upload a PDF or Word template, then add the required headings or format rules for the generated Word spec.</p>
+                  </div>
+                  <label className="upload-button">
+                    Upload template
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleTemplateUpload}
+                    />
+                  </label>
+                </div>
+                <div className="template-summary">
+                  <strong>{form.templateName || 'No template uploaded'}</strong>
+                  <span>{form.templateType || 'PDF, DOC, or DOCX accepted'}</span>
+                </div>
+                <label>
+                  Template guidance
+                  <textarea
+                    rows={5}
+                    value={form.templateOutline}
+                    onChange={(event) => updateForm('templateOutline', event.target.value)}
+                    placeholder="Paste template headings, section order, style requirements, mandatory tables, approval fields, or acceptance criteria here."
+                  />
+                </label>
               </section>
 
               <section className="input-section">
@@ -642,12 +863,12 @@ function App() {
             <section className="preview-panel">
               <div className="preview-toolbar">
                 <div>
-                  <h3>Generated Markdown</h3>
+                  <h3>Generated Document Text</h3>
                   <p>{selectedArea.name} | {docFormats.find((format) => format.id === form.format)?.name}</p>
                 </div>
                 <div className="toolbar-actions">
                   <button type="button" onClick={copyDocumentation}>Copy</button>
-                  <button type="button" className="secondary-button" onClick={exportMarkdown}>Download</button>
+                  <button type="button" className="secondary-button" onClick={exportWord}>Download Word</button>
                   <button type="button" className="danger-button" onClick={resetWorkspace}>Reset</button>
                 </div>
               </div>
