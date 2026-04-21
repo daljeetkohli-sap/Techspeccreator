@@ -23,10 +23,12 @@ npm run build
 
 - Confirm all solution area presets render correctly: SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori, SAP CAP, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
 - Add multiple screenshot files and verify preview cards, captions, notes, and remove actions.
-- Paste ABAP, JSON, XML, JavaScript, Groovy, and CDS snippets and verify generated Markdown preserves formatting.
+- Add screenshot type, visible text/object names/status messages, and notes. Click Review image and verify the generated technical interpretation appears in the Markdown.
+- Paste or attach ABAP, JSON, XML, JavaScript, Groovy, and CDS snippets and verify generated Markdown preserves formatting.
+- Verify the Code Understanding section identifies relevant patterns such as ABAP logic, OData/service exposure, CAP/CDS, Fiori/UI5, CPI/Groovy, Azure Logic Apps, Commerce, Spartacus, error handling, and possible secrets.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Markdown is copied to the clipboard.
-- Use Export .md and confirm the downloaded filename and document content.
+- Use Download .md and confirm the downloaded filename and document content. If the embedded browser blocks downloads, use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
 - Test desktop, tablet, and mobile browser widths for readable layout and no text overlap.

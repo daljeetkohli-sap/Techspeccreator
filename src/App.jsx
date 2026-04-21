@@ -80,6 +80,18 @@ const docFormats = [
   { id: 'handover', name: 'Handover Pack', description: 'Implementation summary, evidence, risks, and next steps.' }
 ];
 
+const screenshotTypes = [
+  'SAP GUI / ABAP Workbench',
+  'SAP Fiori / UI5 screen',
+  'SAP BTP cockpit',
+  'SAP Integration Suite monitor',
+  'Azure Logic Apps run',
+  'SAP Commerce Backoffice / HAC',
+  'Code review / IDE',
+  'Architecture or flow diagram',
+  'Test evidence'
+];
+
 const initialForm = {
   title: 'Customer Account Update Interface',
   owner: 'SAP Delivery Team',
@@ -115,8 +127,10 @@ function createScreenshotRecord(file) {
     name: file.name,
     size: file.size,
     url: URL.createObjectURL(file),
+    screenType: 'Test evidence',
     caption: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '),
-    note: ''
+    note: '',
+    extractedText: ''
   };
 }
 
@@ -134,11 +148,89 @@ function bulletList(items) {
   return items.filter(Boolean).map((item) => `- ${item}`).join('\n');
 }
 
+function slugify(value) {
+  return (safeLine(value) || 'technical-specification')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function detectCodeSignals(code, area) {
+  const text = code || '';
+  const lower = text.toLowerCase();
+  const signals = [];
+
+  const checks = [
+    [/^\s*(data|select|loop|if|call function|class|method|raise exception)\b/im, 'ABAP logic detected: variables, conditions, database access, function/class usage, or exception handling.'],
+    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'OData/service exposure detected: document service entity, binding, annotations, and authorization behavior.'],
+    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'CAP/CDS pattern detected: document entities, services, handlers, persistence, and deployment target.'],
+    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Fiori/UI5 pattern detected: document component structure, manifest routing, models, views, and launchpad intent.'],
+    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'SAP Integration Suite/CPI pattern detected: document adapter flow, mapping, script step, headers/properties, and monitoring.'],
+    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Azure Logic Apps workflow pattern detected: document trigger, connectors, actions, retry policy, and run history.'],
+    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'SAP Commerce pattern detected: document extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
+    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'SAP Spartacus pattern detected: document Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
+    [/try\s*\{|catch\s*\(|raise exception|throw new|exception/i, 'Error handling detected: document validation failures, exception mapping, retries, and user/support messages.'],
+    [/password|secret|client_secret|apikey|api-key|bearer\s+[a-z0-9]/i, 'Security-sensitive token pattern found: remove secrets from documentation and store credentials in a vault/destination.']
+  ];
+
+  checks.forEach(([pattern, message]) => {
+    if (pattern.test(text)) signals.push(message);
+  });
+
+  if (!signals.length && safeLine(text)) {
+    signals.push(`Code was provided for ${area.name}; review object names, inputs, outputs, validations, dependencies, and error paths.`);
+  }
+
+  if (!safeLine(text)) {
+    signals.push('No code snippet supplied yet; attach or paste the relevant ABAP, CDS, XML, JSON, JavaScript, Groovy, or configuration snippet.');
+  }
+
+  return [...new Set(signals)];
+}
+
+function buildCodeUnderstanding(form, area) {
+  const signals = detectCodeSignals(form.codeSnippet, area);
+  return bulletList(signals);
+}
+
+function buildScreenshotUnderstanding(shot, area, index) {
+  const context = [shot.caption, shot.note, shot.extractedText, shot.name, shot.screenType].map(safeLine).join(' ').toLowerCase();
+  const observations = [];
+
+  if (shot.screenType) observations.push(`Screenshot type: ${shot.screenType}.`);
+  if (safeLine(shot.caption)) observations.push(`Caption reviewed: ${safeLine(shot.caption)}.`);
+  if (safeLine(shot.note)) observations.push(`Reviewer note: ${safeLine(shot.note)}.`);
+  if (safeLine(shot.extractedText)) observations.push(`Visible text captured: ${safeLine(shot.extractedText)}.`);
+
+  if (/error|failed|exception|dump|red|invalid|unauthori[sz]ed|timeout/.test(context)) {
+    observations.push('Technical interpretation: evidence appears to include an error or failure path; document root cause, retry/reprocess steps, and support ownership.');
+  } else if (/success|completed|green|posted|processed|200|ok/.test(context)) {
+    observations.push('Technical interpretation: evidence appears to show a successful processing state; link it to the happy-path validation scenario.');
+  } else if (/monitor|message|run|trace|log|payload|iflow|integration/.test(context)) {
+    observations.push('Technical interpretation: evidence appears integration-focused; document message ID, sender/receiver, payload mapping, and monitoring location.');
+  } else if (/fiori|launchpad|tile|ui5|screen|app|semantic/.test(context)) {
+    observations.push('Technical interpretation: evidence appears UI-focused; document app intent, role access, service binding, and user action shown.');
+  } else if (/btp|destination|role|subaccount|cloud foundry|space/.test(context)) {
+    observations.push('Technical interpretation: evidence appears BTP-focused; document subaccount, destination, role collection, service instance, and deployment target.');
+  } else if (/logic app|workflow|trigger|connector|azure/.test(context)) {
+    observations.push('Technical interpretation: evidence appears Azure workflow-focused; document trigger, connector actions, retry policy, and run history.');
+  } else if (/abap|se38|se80|adt|class|method|transport|cds/.test(context)) {
+    observations.push('Technical interpretation: evidence appears ABAP/development-focused; document object name, package, transport, dependencies, and activation status.');
+  } else {
+    observations.push(`Technical interpretation: review this figure against the ${area.name} design and document what object, configuration, test result, or runtime state it proves.`);
+  }
+
+  return `### Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}\n${bulletList(observations)}`;
+}
+
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const evidence = screenshots.length
-    ? screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')
+    ? screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')
     : '- Add screenshots of the app screen, SAP transaction, BTP cockpit page, workflow run, or code review evidence.';
+  const screenshotReview = screenshots.length
+    ? screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')
+    : '- No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.';
 
   const areaPrompts = area.prompts.map((prompt) => `- ${prompt}: _Add detail_`).join('\n');
   const sectionDetails = area.sections.map((section) => `### ${section}\n- Current state: _Describe what was built or configured._\n- Evidence: _Reference screenshot, object name, or code line._`).join('\n\n');
@@ -150,11 +242,13 @@ function buildDocumentation(form, area, screenshots) {
     `## 3. Solution Area Checklist\n${areaPrompts}\n\n` +
     `## 4. Technical Design\n${sectionDetails}\n\n` +
     `## 5. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
-    `## 6. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
-    `## 7. Screenshot Evidence\n${evidence}\n\n` +
-    `## 8. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
-    `## 9. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
-    `## 10. Support Notes\n${bulletList([
+    `## 6. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
+    `## 7. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
+    `## 8. Screenshot Evidence\n${evidence}\n\n` +
+    `## 9. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
+    `## 10. Testing And Validation\n${safeLine(form.testingNotes) || 'Document test scenarios, test data, expected results, actual results, and linked defects.'}\n\n` +
+    `## 11. Risks, Assumptions, And Open Items\n${safeLine(form.risks) || 'List risks, assumptions, dependencies, and follow-up actions.'}\n\n` +
+    `## 12. Support Notes\n${bulletList([
       'Primary support team: _Add team or queue_',
       'Monitoring location: _Add SAP app, BTP cockpit, Azure run history, or commerce console path_',
       'Recovery action: _Add restart, reprocess, rollback, or manual correction steps_',
@@ -183,7 +277,7 @@ function App() {
       words,
       screenshots: screenshots.length,
       completedFields,
-      sections: selectedArea.sections.length + 6
+      sections: selectedArea.sections.length + 8
     };
   }, [form, generatedDoc, screenshots.length, selectedArea.sections.length]);
 
@@ -218,6 +312,21 @@ function App() {
     );
   }
 
+  function applyScreenshotReview(id) {
+    setScreenshots((current) =>
+      current.map((shot, index) => {
+        if (shot.id !== id) return shot;
+        const review = buildScreenshotUnderstanding(shot, selectedArea, index)
+          .split('\n')
+          .slice(1)
+          .join('\n')
+          .replace(/^- /gm, '');
+        return { ...shot, note: shot.note || review };
+      })
+    );
+    showToast('Screenshot review added to notes');
+  }
+
   function removeScreenshot(id) {
     setScreenshots((current) => {
       const target = current.find((shot) => shot.id === id);
@@ -232,15 +341,67 @@ function App() {
     showToast('Documentation copied as Markdown');
   }
 
-  function exportMarkdown() {
-    const blob = new Blob([generatedDoc], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${(safeLine(form.title) || 'technical-documentation').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast('Markdown exported');
+  async function handleCodeFileUpload(event) {
+    const [file] = Array.from(event.target.files || []);
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      updateForm('codeSnippet', text);
+      showToast(`Code loaded from ${file.name}`);
+    } catch {
+      showToast('Could not read code file');
+    } finally {
+      event.target.value = '';
+    }
+  }
+
+  async function exportMarkdown() {
+    const filename = `${slugify(form.title)}.md`;
+
+    try {
+      if ('showSaveFilePicker' in window) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: 'Markdown document',
+              accept: { 'text/markdown': ['.md'] }
+            }
+          ]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(generatedDoc);
+        await writable.close();
+        showToast('Markdown saved');
+        return;
+      }
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        showToast('Save cancelled');
+        return;
+      }
+    }
+
+    try {
+      const blob = new Blob([generatedDoc], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        link.remove();
+      }, 1000);
+      showToast('Markdown download started');
+    } catch {
+      await copyDocumentation();
+      showToast('Download blocked, copied Markdown instead');
+    }
   }
 
   function resetWorkspace() {
@@ -268,7 +429,7 @@ function App() {
             Copy doc
           </button>
           <button type="button" className="secondary-button" onClick={exportMarkdown} title="Export Markdown">
-            Export .md
+            Download .md
           </button>
         </div>
       </section>
@@ -380,7 +541,17 @@ function App() {
               </section>
 
               <section className="input-section">
-                <h3>Code Snippet</h3>
+                <div className="section-row">
+                  <h3>Code Snippet</h3>
+                  <label className="upload-button">
+                    Attach code file
+                    <input
+                      type="file"
+                      accept=".abap,.cds,.xml,.json,.js,.ts,.java,.groovy,.txt,.properties,.yaml,.yml"
+                      onChange={handleCodeFileUpload}
+                    />
+                  </label>
+                </div>
                 <textarea
                   className="code-input"
                   rows={12}
@@ -388,6 +559,14 @@ function App() {
                   onChange={(event) => updateForm('codeSnippet', event.target.value)}
                   spellCheck="false"
                 />
+                <div className="analysis-box">
+                  <strong>Code understanding</strong>
+                  <ul>
+                    {detectCodeSignals(form.codeSnippet, selectedArea).map((signal) => (
+                      <li key={signal}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
               </section>
 
               <section className="input-section">
@@ -405,6 +584,15 @@ function App() {
                       <img src={shot.url} alt={shot.caption || shot.name} />
                       <div className="screenshot-fields">
                         <span>Figure {index + 1} | {formatBytes(shot.size)}</span>
+                        <select
+                          value={shot.screenType}
+                          onChange={(event) => updateScreenshot(shot.id, 'screenType', event.target.value)}
+                          aria-label="Screenshot type"
+                        >
+                          {screenshotTypes.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
                         <input
                           value={shot.caption}
                           onChange={(event) => updateScreenshot(shot.id, 'caption', event.target.value)}
@@ -412,17 +600,28 @@ function App() {
                         />
                         <textarea
                           rows={3}
+                          value={shot.extractedText}
+                          onChange={(event) => updateScreenshot(shot.id, 'extractedText', event.target.value)}
+                          placeholder="Paste visible screenshot text, object names, errors, message IDs, or status values"
+                        />
+                        <textarea
+                          rows={3}
                           value={shot.note}
                           onChange={(event) => updateScreenshot(shot.id, 'note', event.target.value)}
-                          placeholder="What should the reader notice?"
+                          placeholder="Reviewer notes and technical interpretation"
                         />
-                        <button type="button" className="ghost-button" onClick={() => removeScreenshot(shot.id)}>
-                          Remove
-                        </button>
+                        <div className="card-actions">
+                          <button type="button" className="secondary-button" onClick={() => applyScreenshotReview(shot.id)}>
+                            Review image
+                          </button>
+                          <button type="button" className="ghost-button" onClick={() => removeScreenshot(shot.id)}>
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </article>
                   )) : (
-                    <div className="empty-state">Upload SAP GUI, Fiori, BTP cockpit, Azure, HAC, Backoffice, or code review screenshots.</div>
+                    <div className="empty-state">Upload SAP GUI, Fiori, BTP cockpit, Azure, HAC, Backoffice, or code review screenshots. Add visible text or notes so the document can interpret what each image proves.</div>
                   )}
                 </div>
               </section>
@@ -448,7 +647,7 @@ function App() {
                 </div>
                 <div className="toolbar-actions">
                   <button type="button" onClick={copyDocumentation}>Copy</button>
-                  <button type="button" className="secondary-button" onClick={exportMarkdown}>Export</button>
+                  <button type="button" className="secondary-button" onClick={exportMarkdown}>Download</button>
                   <button type="button" className="danger-button" onClick={resetWorkspace}>Reset</button>
                 </div>
               </div>

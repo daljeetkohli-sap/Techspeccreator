@@ -137,7 +137,8 @@ h1 {
 }
 
 .hero-actions,
-.toolbar-actions {
+.toolbar-actions,
+.card-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -354,6 +355,28 @@ h1 {
   background: #f8fbfc;
 }
 
+.analysis-box {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #c9d2d9;
+  border-radius: 8px;
+  background: #eef7f5;
+}
+
+.analysis-box strong {
+  color: #17343b;
+}
+
+.analysis-box ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: #2d3c46;
+  line-height: 1.45;
+}
+
 .upload-button {
   width: auto;
   min-height: 42px;
@@ -403,6 +426,14 @@ h1 {
 .screenshot-fields span {
   color: #5a6b77;
   font-weight: 800;
+}
+
+.card-actions {
+  justify-content: stretch;
+}
+
+.card-actions button {
+  flex: 1 1 150px;
 }
 
 .empty-state {
@@ -483,6 +514,8 @@ h1 {
   .segmented button,
   .toolbar-actions,
   .toolbar-actions button,
+  .card-actions,
+  .card-actions button,
   .hero-actions button,
   .upload-button {
     width: 100%;
