@@ -10,7 +10,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Adds code and screenshot sections only when those artifacts are supplied.
 - Generates area-specific checklist details, testing strategy, risk controls, support notes, and technical design guidance for every supported solution area.
 - Captures document title, document version, revision summary, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
-- Adds the official FAIR CONSULTING GROUP logo to every generated document and supports an optional customer logo upload for the Word export header.
+- Adds generic ABC Consulting branding to every generated document and supports an optional customer logo upload for the Word export header.
 - Asks whether to **Create automatically** or **Use my template** before generating the spec.
 - In **Create automatically** mode, generates a tech-spec structure from the selected SAP area, code snippet, screenshots, and notes.
 - In **Use my template** mode, uploads a PDF, DOC, or DOCX template and lets users add template headings, style rules, mandatory tables, and approval requirements.
@@ -18,7 +18,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Extracts visible text from uploaded screenshot images using in-browser OCR, then uses that text for code, iFlow, workflow, and screenshot interpretation.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured `.docx` Word file with embedded FAIR/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
+- Generates a structured `.docx` Word file with embedded ABC Consulting/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
 - Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Copies a Confluence-friendly rich HTML version for pasting into a Confluence page while keeping the Word export available as an attachment/reference.

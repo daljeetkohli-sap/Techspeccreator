@@ -29,8 +29,8 @@ npm run build
 - Confirm the Purpose section explains why the technical specification is being created, what solution/change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.
 - Confirm Code Understanding, Code Snippet, Screenshot Evidence, and Screenshot Review sections appear only when code or screenshot artifacts are supplied.
 - Confirm the Technical Design subsections change dynamically by selected solution area while the required generic headers remain present.
-- Confirm the official FAIR CONSULTING GROUP logo appears in the branding preview and downloaded Word documents for both **Create automatically** and **Use my template** modes.
-- Upload an optional customer logo image and verify it appears in the downloaded Word document header; remove it and confirm the document still generates with FAIR branding only.
+- Confirm the ABC Consulting logo appears in the branding preview and downloaded Word documents for both **Create automatically** and **Use my template** modes.
+- Upload an optional customer logo image and verify it appears in the downloaded Word document header; remove it and confirm the document still generates with ABC Consulting branding only.
 - Choose **Create automatically** and verify the generated automatic template outline is used in Template Alignment.
 - Choose **Use my template**, upload PDF, DOC, and DOCX templates. Add template headings/style rules into Template Guidance and verify the downloaded Word spec uses that template guidance in Template Alignment.
 - Add multiple screenshot files and verify preview cards, captions, notes, and remove actions.
@@ -47,7 +47,7 @@ npm run build
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Preview opens, status text appears, and document text is copied to the clipboard.
 - Use Copy for Confluence and paste into a Confluence page. Confirm headings, tables, bullet lists, numbered process flow, and code blocks remain readable. Attach the downloaded Word file to the same Confluence page for audit/reference.
-- Use Download Word and confirm the file name starts with `TechSpec_` and includes the version suffix, then confirm the `.docx` file opens in Microsoft Word and Google Docs with embedded FAIR/customer logos, populated document sections, inferred implementation summary, revision history, technical design sections, process flow, template alignment, testing, deployment, monitoring/support, risks, and approval handover included. Confirm code and screenshot content appears only when those artifacts are supplied. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
+- Use Download Word and confirm the file name starts with `TechSpec_` and includes the version suffix, then confirm the `.docx` file opens in Microsoft Word and Google Docs with embedded ABC Consulting/customer logos, populated document sections, inferred implementation summary, revision history, technical design sections, process flow, template alignment, testing, deployment, monitoring/support, risks, and approval handover included. Confirm code and screenshot content appears only when those artifacts are supplied. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
 - Test desktop, tablet, and mobile browser widths for readable layout and no text overlap.

@@ -56,8 +56,8 @@ Users can provide:
 
 Generated documents include:
 
-- Official FAIR CONSULTING GROUP logo
-- FAIR Consulting Group document branding
+- Generic ABC Consulting logo
+- ABC Consulting document branding
 - Optional customer logo
 
 The app exports real `.docx` files with embedded logo and screenshot images, improving compatibility with Microsoft Word and Google Docs.
@@ -68,7 +68,7 @@ Downloaded Word files use the `TechSpec_<document-title>_v<version>.docx` naming
 
 The app supports two template modes:
 
-- Create automatically: uses the FAIR standard technical specification structure for the selected solution area.
+- Create automatically: uses the ABC Consulting standard technical specification structure for the selected solution area.
 - Use my template: allows upload of PDF, DOC, or DOCX templates and lets users provide template headings, mandatory tables, approval fields, or style guidance.
 
 The generated reader-facing document hides internal template generation rules and presents only useful template alignment information.
@@ -156,7 +156,7 @@ When code or evidence is supplied, it can also infer steps around:
 
 The app exports a real `.docx` file using embedded image parts for:
 
-- FAIR logo
+- ABC Consulting logo
 - Customer logo
 - Uploaded screenshots
 
@@ -234,7 +234,7 @@ Beta testing should validate:
 - Whether irrelevant or missing-input sections are skipped correctly
 - Whether screenshots and code snippets are represented accurately
 - Whether `.docx` output works in Word and Google Docs
-- Whether the FAIR and customer logos render correctly
+- Whether the ABC Consulting and customer logos render correctly
 - Whether approval and handover sections are usable for real delivery governance
 - Whether beta users can complete a spec without training
 
@@ -247,7 +247,7 @@ Goal: Make the current local app reliable enough for controlled team beta testin
 Planned improvements:
 
 - Improve document wording for each solution area based on beta feedback.
-- Add more solution areas if required by FAIR delivery teams.
+- Add more solution areas if required by delivery teams.
 - Add stronger validation so users know which inputs improve document quality.
 - Add a richer document preview that looks closer to the final Word output.
 - Add optional sample data/examples for each solution area.
@@ -271,7 +271,7 @@ Technical Spec is the primary beta-ready output today. The remaining formats sho
 - Support Runbook: focus on operational ownership, monitoring points, alert handling, common failures, retry/reprocess steps, access requirements, escalation paths, SLAs, and support contacts.
 - Handover Pack: focus on delivery summary, implemented scope, evidence index, deployment/transport details, open items, known risks, training notes, operational readiness, approval status, and customer/developer handover checklist.
 
-Each format should still reuse the same evidence capture model: solution area, code snippets, screenshots/OCR, process notes, template guidance, testing notes, risks, FAIR branding, optional customer logo, Word export, and Confluence copy.
+Each format should still reuse the same evidence capture model: solution area, code snippets, screenshots/OCR, process notes, template guidance, testing notes, risks, generic consulting branding, optional customer logo, Word export, and Confluence copy.
 
 ### Phase 2: Smarter Evidence Understanding
 
@@ -329,7 +329,7 @@ Potential integrations:
 
 ### Phase 5: Delivery Intelligence Platform
 
-Goal: Make the app a reusable FAIR Consulting Group accelerator for delivery documentation and support readiness.
+Goal: Make the app a reusable consulting accelerator for delivery documentation and support readiness.
 
 Long-term capabilities:
 
@@ -342,7 +342,7 @@ Long-term capabilities:
 - Maintain a reusable knowledge base of solution patterns.
 - Ask-this-spec chat across generated technical specs, runbooks, screenshots, OCR text, and code snippets.
 - AI-ready exports such as Markdown bundles, `llms.txt`, and reusable spec knowledge packs for future assistants.
-- Provide customer-ready export packs with consistent FAIR branding.
+- Provide customer-ready export packs with consistent configurable branding.
 
 ## Success Criteria
 
@@ -353,7 +353,7 @@ The app should be considered successful when:
 - Support teams receive enough information to monitor, troubleshoot, and own the solution.
 - Customer documents follow a consistent structure and branding standard.
 - The generated `.docx` can be opened and edited reliably in Word and Google Docs.
-- FAIR delivery teams can reuse the tool across multiple SAP and enterprise technology areas.
+- Delivery teams can reuse the tool across multiple SAP and enterprise technology areas.
 
 ## Recommended Next Decisions
 

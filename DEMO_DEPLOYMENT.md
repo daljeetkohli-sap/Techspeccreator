@@ -9,7 +9,7 @@ The current MVP is a frontend-only React/Vite app. It does not need a backend fo
 - Technical spec generation
 - Technical flow diagram generation
 - Word `.docx` export
-- FAIR/customer logo embedding
+- ABC Consulting/customer logo embedding
 - Template guidance capture
 - Confluence-friendly copy
 - Local form persistence
