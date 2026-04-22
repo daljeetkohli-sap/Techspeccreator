@@ -841,7 +841,16 @@ function cleanFlowLabel(value, fallback) {
 }
 
 function wrapSvgText(value, maxLength = 28) {
-  const words = cleanFlowLabel(value, 'Process step').split(' ');
+  const words = cleanFlowLabel(value, 'Process step')
+    .split(' ')
+    .flatMap((word) => {
+      if (word.length <= maxLength) return [word];
+      const chunks = [];
+      for (let index = 0; index < word.length; index += maxLength) {
+        chunks.push(word.slice(index, index + maxLength));
+      }
+      return chunks;
+    });
   const lines = [];
   let current = '';
 
@@ -962,6 +971,7 @@ async function svgToPngBytes(svg, width = 980, height = 430) {
         canvas.width = width;
         canvas.height = height;
         const context = canvas.getContext('2d');
+        if (!context) throw new Error('Could not create flow diagram canvas context');
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, width, height);
         context.drawImage(image, 0, 0, width, height);
@@ -990,14 +1000,20 @@ async function createFlowDiagramAsset(steps) {
   const svg = buildFlowDiagramSvg(steps);
   if (!svg) return null;
   const [, width = '980', height = '430'] = svg.match(/width="(\d+)" height="(\d+)"/) || [];
+  const svgWidth = Number(width);
+  const svgHeight = Number(height);
 
-  return {
-    svg,
-    width: Number(width),
-    height: Number(height),
-    svgBytes: new TextEncoder().encode(svg),
-    pngBytes: await svgToPngBytes(svg, Number(width), Number(height))
-  };
+  try {
+    return {
+      svg,
+      width: svgWidth,
+      height: svgHeight,
+      svgBytes: new TextEncoder().encode(svg),
+      pngBytes: await svgToPngBytes(svg, svgWidth, svgHeight)
+    };
+  } catch {
+    return null;
+  }
 }
 
 function buildProcessFlowContent(form, area, screenshots) {
