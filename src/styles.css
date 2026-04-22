@@ -209,6 +209,39 @@ h1 {
   font-weight: 760;
 }
 
+.validation-banner,
+.evidence-banner {
+  display: grid;
+  gap: 5px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.validation-banner {
+  border: 1px solid #d6a751;
+  background: #fff8e8;
+  color: #4a3310;
+}
+
+.evidence-banner {
+  border: 1px solid #b7d8ce;
+  background: #eef7f5;
+  color: #17343b;
+}
+
+.validation-banner strong,
+.evidence-banner strong {
+  font-weight: 900;
+}
+
+.validation-banner span,
+.evidence-banner span {
+  color: inherit;
+  font-weight: 720;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1fr);

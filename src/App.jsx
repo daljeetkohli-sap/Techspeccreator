@@ -380,21 +380,21 @@ const areaValidationProfiles = {
 };
 
 const initialForm = {
-  title: sampleDefaults.title,
-  owner: sampleDefaults.owner,
-  system: sampleDefaults.system,
+  title: '',
+  owner: '',
+  system: '',
   documentVersion: '0.1 Draft',
   format: 'technical',
-  areaId: 'sap-integration',
-  overview: sampleDefaults.overview,
-  businessProcess: sampleDefaults.businessProcess,
-  codeSnippet: sampleDefaults.codeSnippet,
+  areaId: '',
+  overview: '',
+  businessProcess: '',
+  codeSnippet: '',
   codeFileName: '',
   codeFileType: '',
-  configNotes: sampleDefaults.configNotes,
-  testingNotes: sampleDefaults.testingNotes,
-  risks: sampleDefaults.risks,
-  revisionSummary: sampleDefaults.revisionSummary,
+  configNotes: '',
+  testingNotes: '',
+  risks: '',
+  revisionSummary: '',
   templateMode: 'auto',
   templateName: '',
   templateType: '',
@@ -419,9 +419,17 @@ function evidenceLine(form, field) {
 function migrateSavedForm(form) {
   if (!form) return form;
   const migrated = { ...initialForm, ...form };
+  const clearedSamples = Object.keys(sampleDefaults).reduce((current, field) => {
+    if (safeLine(current[field]) === safeLine(sampleDefaults[field])) {
+      return { ...current, [field]: '' };
+    }
+    return current;
+  }, migrated);
+  const hasSavedEvidence = safeLine(clearedSamples.codeSnippet) || safeLine(clearedSamples.codeFileName);
   return {
-    ...migrated,
-    overview: safeLine(migrated.overview) === oldSampleOverview ? initialForm.overview : migrated.overview
+    ...clearedSamples,
+    areaId: clearedSamples.areaId === 'sap-integration' && !hasSavedEvidence ? '' : clearedSamples.areaId,
+    overview: safeLine(clearedSamples.overview) === oldSampleOverview ? initialForm.overview : clearedSamples.overview
   };
 }
 
@@ -950,23 +958,29 @@ function getActiveCodeSnippet(form) {
   return evidenceLine(form, 'codeSnippet');
 }
 
-function deriveDocumentTitle(form, area, screenshots) {
-  const providedTitle = evidenceLine(form, 'title');
-  if (providedTitle && !isWeakScreenshotDefault(providedTitle)) return providedTitle;
+function getEvidenceTitleFromInputs(form, area, screenshots) {
   if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
   const codeDetails = inferCodeDetails(getActiveCodeSnippet(form), area);
   if (codeDetails.objects.length) return humanizeArtifactName(codeDetails.objects[0]);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.iflowName) return iflowFacts.iflowName;
-  if (providedTitle) return providedTitle;
   const firstScreenshot = screenshots[0];
-  if (firstScreenshot) return humanizeArtifactName(firstScreenshot.caption || firstScreenshot.name);
+  if (firstScreenshot && !isWeakScreenshotDefault(firstScreenshot.caption || firstScreenshot.name)) {
+    return humanizeArtifactName(firstScreenshot.caption || firstScreenshot.name);
+  }
+  return '';
+}
+
+function deriveDocumentTitle(form, area, screenshots) {
+  const evidenceTitle = getEvidenceTitleFromInputs(form, area, screenshots);
+  if (evidenceTitle) return evidenceTitle;
+  const providedTitle = evidenceLine(form, 'title');
+  if (providedTitle && !isWeakScreenshotDefault(providedTitle)) return providedTitle;
+  if (providedTitle) return providedTitle;
   return `${area.name} Technical Specification`;
 }
 
 function deriveBusinessProcessText(form, area, screenshots) {
-  const providedProcess = evidenceLine(form, 'businessProcess');
-  if (providedProcess && !isWeakScreenshotDefault(providedProcess)) return providedProcess;
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.processSteps?.length) {
     const summary = [
@@ -977,7 +991,6 @@ function deriveBusinessProcessText(form, area, screenshots) {
     ].filter(Boolean).join('; ');
     return `${summary}. Process evidence: ${iflowFacts.processSteps.slice(0, 10).join(' -> ')}.`;
   }
-  if (providedProcess) return providedProcess;
   const screenshotText = screenshots
     .map((shot, index) => {
       const parts = [
@@ -1005,7 +1018,20 @@ function deriveBusinessProcessText(form, area, screenshots) {
     ...codeDetails.errors
   ].filter(Boolean);
   if (codeFlow.length) return `Process inferred from code evidence: ${codeFlow.slice(0, 8).join(' -> ')}`;
+  const providedProcess = evidenceLine(form, 'businessProcess');
+  if (providedProcess && !isWeakScreenshotDefault(providedProcess)) return providedProcess;
+  if (providedProcess) return providedProcess;
   return '';
+}
+
+function deriveSystemText(form, area, screenshots) {
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  const inferredSystems = uniqueItems([
+    iflowFacts?.sourceSystem,
+    iflowFacts?.targetSystem
+  ]).join(', ');
+  if (inferredSystems) return inferredSystems;
+  return evidenceLine(form, 'system');
 }
 
 function getEvidenceProfile(form, area, screenshots) {
@@ -1018,7 +1044,7 @@ function getEvidenceProfile(form, area, screenshots) {
     testingNotes: evidenceLine(form, 'testingNotes'),
     risks: evidenceLine(form, 'risks'),
     revisionSummary: evidenceLine(form, 'revisionSummary'),
-    system: evidenceLine(form, 'system'),
+    system: deriveSystemText(form, area, screenshots),
     owner: evidenceLine(form, 'owner'),
     codeSnippet,
     codeFileName: safeLine(form.codeFileName),
@@ -2359,6 +2385,58 @@ function markdownToConfluenceHtml(markdown, flowDiagramSvg = '') {
   return `<div>${html.join('\n')}</div>`;
 }
 
+function hasAreaSelection(form) {
+  return capabilityAreas.some((area) => area.id === form.areaId);
+}
+
+function hasEvidenceInput(form, screenshots) {
+  return Boolean(safeLine(form.codeSnippet) || safeLine(form.codeFileName) || screenshots.length);
+}
+
+function buildBlockedPreview(form, area, screenshots) {
+  if (!hasAreaSelection(form)) {
+    return [
+      '# Choose Solution Area First',
+      '',
+      'Select the solution area for the document before uploading screenshots, pasting code, previewing, copying, or exporting.',
+      '',
+      'After the area is selected, provide one evidence source: either a code snippet/file or screenshot evidence.'
+    ].join('\n');
+  }
+
+  if (!hasEvidenceInput(form, screenshots)) {
+    return [
+      `# ${area.name} Documentation Intake`,
+      '',
+      'Provide either a code snippet/file or screenshot evidence to generate the document.',
+      '',
+      'The app will derive the document name, process flow, technical design, testing focus, monitoring notes, and solution-area sections from the supplied evidence.'
+    ].join('\n');
+  }
+
+  return '';
+}
+
+function buildReadinessGaps(form, area, screenshots) {
+  const gaps = [];
+  if (!hasAreaSelection(form)) gaps.push('Solution area must be selected before evidence is added.');
+  if (!hasEvidenceInput(form, screenshots)) gaps.push('Provide exactly one active evidence path: code snippet/file or screenshot evidence.');
+  if (screenshots.length && !screenshots.some((shot) => safeLine(shot.extractedText) || safeLine(shot.note))) {
+    gaps.push('Screenshot evidence should have extracted text or reviewer notes so the app can derive real sections.');
+  }
+  if (safeLine(form.codeSnippet) && screenshots.length) gaps.push('Code and screenshot evidence should not be active together; clear one source before export.');
+  if (hasAreaSelection(form) && hasEvidenceInput(form, screenshots) && !getEvidenceTitleFromInputs(form, area, screenshots)) {
+    gaps.push('Document name could not be confidently derived from evidence; add file name, object name, iFlow name, screenshot caption, or visible text.');
+  }
+  if (area.id === 'sap-integration' && screenshots.length) {
+    const iflowFacts = extractIntegrationFlowFacts(form, screenshots);
+    if (!iflowFacts.hasEvidence && screenshots.some((shot) => /iflow|integration/i.test(`${shot.screenType} ${shot.caption} ${shot.name}`))) {
+      gaps.push('CPI/iFlow screenshot needs OCR text or notes containing visible step labels, adapters, systems, or iFlow name.');
+    }
+  }
+  return gaps;
+}
+
 function App() {
   const savedWorkspace = loadSavedWorkspace();
   const [form, setForm] = useState(savedWorkspace?.form ?? initialForm);
@@ -2369,19 +2447,33 @@ function App() {
   const [ocrActiveId, setOcrActiveId] = useState('');
   const [ocrStatus, setOcrStatus] = useState('');
 
-  const selectedArea = capabilityAreas.find((area) => area.id === form.areaId) ?? capabilityAreas[0];
+  const selectedArea = capabilityAreas.find((area) => area.id === form.areaId) || null;
+  const displayArea = selectedArea ?? capabilityAreas[0];
+  const areaReady = Boolean(selectedArea);
+  const evidenceReady = hasEvidenceInput(form, screenshots);
   const generatedDoc = useMemo(
-    () => buildDocumentation(form, selectedArea, screenshots),
-    [form, selectedArea, screenshots]
+    () => {
+      const blocked = buildBlockedPreview(form, displayArea, screenshots);
+      return blocked || buildDocumentation(form, displayArea, screenshots);
+    },
+    [form, displayArea, screenshots]
   );
   const previewTechnicalDiagramSteps = useMemo(
-    () => buildTechnicalDiagramSteps(form, selectedArea, screenshots),
-    [form, selectedArea, screenshots]
+    () => (areaReady && evidenceReady ? buildTechnicalDiagramSteps(form, displayArea, screenshots) : []),
+    [areaReady, evidenceReady, form, displayArea, screenshots]
   );
   const previewFlowDiagramSvg = useMemo(
     () => buildFlowDiagramSvg(previewTechnicalDiagramSteps),
     [previewTechnicalDiagramSteps]
   );
+  const derivedDocumentTitle = areaReady && evidenceReady ? deriveDocumentTitle(form, displayArea, screenshots) : '';
+  const derivedBusinessProcess = areaReady && evidenceReady ? deriveBusinessProcessText(form, displayArea, screenshots) : '';
+  const readinessGaps = buildReadinessGaps(form, displayArea, screenshots);
+  const evidenceMode = safeLine(form.codeSnippet) || safeLine(form.codeFileName)
+    ? 'Code evidence'
+    : screenshots.length
+      ? 'Screenshot evidence'
+      : 'No evidence yet';
 
   const stats = useMemo(() => {
     const words = generatedDoc.split(/\s+/).filter(Boolean).length;
@@ -2404,16 +2496,61 @@ function App() {
     window.setTimeout(() => setToast(''), 2200);
   }
 
+  function ensureAreaSelected(action = 'continue') {
+    if (areaReady) return true;
+    setActiveTab('compose');
+    setLastAction(`Choose the solution area first, then ${action}.`);
+    showToast('Choose solution area first');
+    return false;
+  }
+
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function selectArea(areaId) {
+    setForm((current) => ({
+      ...current,
+      areaId,
+      ...(current.areaId === areaId
+        ? {}
+        : {
+          title: '',
+          businessProcess: '',
+          codeSnippet: '',
+          codeFileName: '',
+          codeFileType: ''
+        })
+    }));
+    if (form.areaId !== areaId) setScreenshots([]);
+    setLastAction('');
+    showToast('Solution area selected; add code or screenshot evidence');
+  }
+
+  function handleCodeSnippetChange(value) {
+    if (!ensureAreaSelected('paste or attach evidence')) return;
+    if (safeLine(value)) {
+      setScreenshots([]);
+    }
+    setForm((current) => ({
+      ...current,
+      codeSnippet: value,
+      codeFileName: safeLine(value) ? current.codeFileName : '',
+      codeFileType: safeLine(value) ? (current.codeFileType || 'Code snippet') : ''
+    }));
+  }
+
   function setTemplateMode(mode) {
+    if (!ensureAreaSelected('choose the template source')) return;
     setForm((current) => ({ ...current, templateMode: mode }));
     showToast(mode === 'upload' ? 'Use my template selected' : 'Automatic template selected');
   }
 
   async function handleScreenshotUpload(event) {
+    if (!ensureAreaSelected('add screenshot evidence')) {
+      event.target.value = '';
+      return;
+    }
     const files = Array.from(event.target.files || []);
     const imageFiles = files.filter((file) => file.type.startsWith('image/'));
     if (!imageFiles.length) {
@@ -2427,13 +2564,13 @@ function App() {
       );
       const typedRecords = records.map((record) => ({
         ...record,
-        screenType: selectedArea.id === 'sap-integration' ? 'SAP Integration Suite iFlow design' : record.screenType
+        screenType: displayArea.id === 'sap-integration' ? 'SAP Integration Suite iFlow design' : record.screenType
       }));
       setScreenshots((current) => [...current, ...typedRecords]);
       setForm((current) => ({
         ...current,
-        title: evidenceLine(current, 'title') && !isWeakScreenshotDefault(current.title) ? current.title : humanizeArtifactName(typedRecords[0]?.caption || typedRecords[0]?.name),
-        businessProcess: evidenceLine(current, 'businessProcess') && !isWeakScreenshotDefault(current.businessProcess) ? current.businessProcess : typedRecords.map((record) => humanizeArtifactName(record.caption || record.name)).join(' -> '),
+        title: '',
+        businessProcess: '',
         codeSnippet: '',
         codeFileName: '',
         codeFileType: ''
@@ -2447,6 +2584,10 @@ function App() {
   }
 
   async function handleCustomerLogoUpload(event) {
+    if (!ensureAreaSelected('add document branding')) {
+      event.target.value = '';
+      return;
+    }
     const [file] = Array.from(event.target.files || []);
     if (!file) return;
 
@@ -2489,6 +2630,7 @@ function App() {
   }
 
   async function extractScreenshotText(id) {
+    if (!ensureAreaSelected('extract screenshot text')) return;
     const shot = screenshots.find((item) => item.id === id);
     if (!shot?.dataUrl) {
       showToast('No image available for OCR');
@@ -2531,7 +2673,7 @@ function App() {
           };
         })
       );
-      if (selectedArea.id === 'sap-integration') {
+      if (displayArea.id === 'sap-integration') {
         const enrichedShot = {
           ...shot,
           extractedText: shot.extractedText ? `${shot.extractedText}\n\n${text}` : text,
@@ -2541,11 +2683,9 @@ function App() {
         if (iflowFacts.hasEvidence) {
           setForm((current) => ({
             ...current,
-            title: iflowFacts.iflowName && (!evidenceLine(current, 'title') || isWeakScreenshotDefault(current.title)) ? iflowFacts.iflowName : current.title,
+            title: iflowFacts.iflowName ? '' : current.title,
             system: [iflowFacts.sourceSystem, iflowFacts.targetSystem].filter(Boolean).join(', ') || current.system,
-            businessProcess: iflowFacts.processSteps.length && (!evidenceLine(current, 'businessProcess') || isWeakScreenshotDefault(current.businessProcess))
-              ? iflowFacts.processSteps.join(' -> ')
-              : current.businessProcess
+            businessProcess: iflowFacts.processSteps.length ? '' : current.businessProcess
           }));
         }
       }
@@ -2567,10 +2707,11 @@ function App() {
   }
 
   function applyScreenshotReview(id) {
+    if (!ensureAreaSelected('review the screenshot')) return;
     setScreenshots((current) =>
       current.map((shot, index) => {
         if (shot.id !== id) return shot;
-        const review = buildScreenshotUnderstanding(shot, selectedArea, index)
+        const review = buildScreenshotUnderstanding(shot, displayArea, index)
           .split('\n')
           .slice(1)
           .join('\n')
@@ -2589,7 +2730,14 @@ function App() {
   }
 
   async function copyDocumentation() {
-    const textToCopy = generatedDoc || buildDocumentation(form, selectedArea, screenshots);
+    if (!ensureAreaSelected('copy or export the document')) return;
+    if (!evidenceReady) {
+      setActiveTab('compose');
+      setLastAction('Provide either a code snippet/file or screenshot evidence before copying the document.');
+      showToast('Add code or screenshot first');
+      return;
+    }
+    const textToCopy = generatedDoc || buildDocumentation(form, displayArea, screenshots);
     setActiveTab('preview');
 
     try {
@@ -2603,7 +2751,14 @@ function App() {
   }
 
   async function copyConfluenceDocumentation() {
-    const textToCopy = generatedDoc || buildDocumentation(form, selectedArea, screenshots);
+    if (!ensureAreaSelected('copy or export the document')) return;
+    if (!evidenceReady) {
+      setActiveTab('compose');
+      setLastAction('Provide either a code snippet/file or screenshot evidence before copying for Confluence.');
+      showToast('Add code or screenshot first');
+      return;
+    }
+    const textToCopy = generatedDoc || buildDocumentation(form, displayArea, screenshots);
     const htmlToCopy = markdownToConfluenceHtml(textToCopy, previewFlowDiagramSvg);
     setActiveTab('preview');
 
@@ -2634,6 +2789,10 @@ function App() {
   }
 
   async function handleCodeFileUpload(event) {
+    if (!ensureAreaSelected('attach code evidence')) {
+      event.target.value = '';
+      return;
+    }
     const [file] = Array.from(event.target.files || []);
     if (!file) return;
 
@@ -2642,8 +2801,8 @@ function App() {
       setScreenshots([]);
       setForm((current) => ({
         ...current,
-        title: evidenceLine(current, 'title') ? current.title : humanizeArtifactName(file.name),
-        businessProcess: evidenceLine(current, 'businessProcess') ? current.businessProcess : `Process inferred from code artifact ${file.name}.`,
+        title: '',
+        businessProcess: '',
         codeSnippet: text,
         codeFileName: file.name,
         codeFileType: file.type || file.name.split('.').pop()?.toUpperCase() || 'Code'
@@ -2657,6 +2816,10 @@ function App() {
   }
 
   async function handleTemplateUpload(event) {
+    if (!ensureAreaSelected('upload a template')) {
+      event.target.value = '';
+      return;
+    }
     const [file] = Array.from(event.target.files || []);
     if (!file) return;
 
@@ -2691,10 +2854,17 @@ function App() {
   }
 
   async function exportWord() {
-    const filename = buildTechSpecFilename(deriveDocumentTitle(form, selectedArea, screenshots), form.documentVersion);
+    if (!ensureAreaSelected('download the Word document')) return;
+    if (!evidenceReady) {
+      setActiveTab('compose');
+      setLastAction('Provide either a code snippet/file or screenshot evidence before downloading Word.');
+      showToast('Add code or screenshot first');
+      return;
+    }
+    const filename = buildTechSpecFilename(deriveDocumentTitle(form, displayArea, screenshots), form.documentVersion);
     const brandLogoAsset = await createBrandLogoAsset();
-    const flowDiagramAsset = await createFlowDiagramAsset(buildTechnicalDiagramSteps(form, selectedArea, screenshots));
-    const wordDocument = buildDocxDocument(form, selectedArea, screenshots, brandLogoAsset, flowDiagramAsset);
+    const flowDiagramAsset = await createFlowDiagramAsset(buildTechnicalDiagramSteps(form, displayArea, screenshots));
+    const wordDocument = buildDocxDocument(form, displayArea, screenshots, brandLogoAsset, flowDiagramAsset);
     const wordBlob = await Packer.toBlob(wordDocument);
     setActiveTab('preview');
 
@@ -2795,7 +2965,7 @@ function App() {
                 type="button"
                 key={area.id}
                 className={`area-tile ${area.id === form.areaId ? 'selected' : ''}`}
-                onClick={() => updateForm('areaId', area.id)}
+                onClick={() => selectArea(area.id)}
               >
                 <span>{area.name}</span>
                 <small>{area.tag}</small>
@@ -2805,7 +2975,7 @@ function App() {
 
           <label className="format-picker">
             Document format
-            <select value={form.format} onChange={(event) => updateForm('format', event.target.value)}>
+            <select value={form.format} onChange={(event) => updateForm('format', event.target.value)} disabled={!areaReady}>
               {docFormats.map((format) => (
                 <option key={format.id} value={format.id}>{format.name}</option>
               ))}
@@ -2825,9 +2995,18 @@ function App() {
           </div>
 
           <div className="area-sections">
-            <strong>{selectedArea.name} sections</strong>
+            <strong>Readiness checks</strong>
             <ul>
-              {selectedArea.sections.map((section) => (
+              {readinessGaps.length ? readinessGaps.map((gap) => (
+                <li key={gap}>{gap}</li>
+              )) : <li>Ready to preview, copy, export Word, or copy for Confluence.</li>}
+            </ul>
+          </div>
+
+          <div className="area-sections">
+            <strong>{displayArea.name} sections</strong>
+            <ul>
+              {displayArea.sections.map((section) => (
                 <li key={section}>{section}</li>
               ))}
             </ul>
@@ -2836,9 +3015,9 @@ function App() {
           <div className="area-sections">
             <strong>Testing focus</strong>
             <ul>
-              {[...buildUnitTestingPlan(selectedArea, form), ...buildIntegrationTestingPlan(selectedArea, form, screenshots)].slice(0, 4).map((item) => (
+              {areaReady ? [...buildUnitTestingPlan(displayArea, form), ...buildIntegrationTestingPlan(displayArea, form, screenshots)].slice(0, 4).map((item) => (
                 <li key={item}>{item}</li>
-              ))}
+              )) : <li>Choose a solution area to load the testing focus.</li>}
             </ul>
           </div>
         </aside>
@@ -2871,30 +3050,51 @@ function App() {
             </div>
           </div>
 
+          {!areaReady ? (
+            <div className="validation-banner" role="status">
+              <strong>Choose solution area first</strong>
+              <span>Select ABAP, CPI, Fiori, CAP, Azure, Commerce, or another area before adding evidence or generating a document.</span>
+            </div>
+          ) : !evidenceReady ? (
+            <div className="validation-banner" role="status">
+              <strong>Add one evidence source</strong>
+              <span>Provide either a code snippet/file or screenshot evidence. When one path is used, the other is cleared so cached inputs do not contaminate the spec.</span>
+            </div>
+          ) : (
+            <div className="evidence-banner" role="status">
+              <strong>{evidenceMode}</strong>
+              <span>Document name, process flow, technical sections, and testing focus are being derived from the active evidence.</span>
+            </div>
+          )}
+
           {activeTab === 'compose' ? (
             <div className="compose-grid">
               <section className="input-section">
-                <h3>Core Details</h3>
+                <h3>Generated Core Details</h3>
                 <div className="field-grid">
                   <label>
-                    Document title
-                    <input value={form.title} onChange={(event) => updateForm('title', event.target.value)} />
+                    Derived document name
+                    <input value={derivedDocumentTitle || 'Will be derived after area and evidence are provided'} readOnly />
                   </label>
                   <label>
                     Owner/team
-                    <input value={form.owner} onChange={(event) => updateForm('owner', event.target.value)} />
+                    <input value={form.owner} onChange={(event) => updateForm('owner', event.target.value)} disabled={!areaReady} placeholder="Optional delivery owner/team" />
                   </label>
                   <label>
                     Document version
-                    <input value={form.documentVersion} onChange={(event) => updateForm('documentVersion', event.target.value)} />
+                    <input value={form.documentVersion} onChange={(event) => updateForm('documentVersion', event.target.value)} disabled={!areaReady} />
                   </label>
                   <label className="wide-field">
                     Systems and landscape
-                    <input value={form.system} onChange={(event) => updateForm('system', event.target.value)} />
+                    <input value={form.system} onChange={(event) => updateForm('system', event.target.value)} disabled={!areaReady} placeholder="Optional if not visible in evidence" />
                   </label>
                   <label className="wide-field">
                     Revision summary
-                    <input value={form.revisionSummary} onChange={(event) => updateForm('revisionSummary', event.target.value)} />
+                    <input value={form.revisionSummary} onChange={(event) => updateForm('revisionSummary', event.target.value)} disabled={!areaReady} placeholder="Optional version note" />
+                  </label>
+                  <label className="wide-field">
+                    Derived business process
+                    <textarea rows={4} value={derivedBusinessProcess || 'Will be derived from the uploaded screenshot or code snippet.'} readOnly />
                   </label>
                 </div>
               </section>
@@ -2907,7 +3107,7 @@ function App() {
                   </div>
                   <label className="upload-button">
                     Upload customer logo
-                    <input type="file" accept="image/*" onChange={handleCustomerLogoUpload} />
+                    <input type="file" accept="image/*" onChange={handleCustomerLogoUpload} disabled={!areaReady} />
                   </label>
                 </div>
                 <div className="brand-preview">
@@ -2945,6 +3145,7 @@ function App() {
                     type="button"
                     className={`template-choice ${getTemplateMode(form) === 'auto' ? 'selected' : ''}`}
                     onClick={() => setTemplateMode('auto')}
+                    disabled={!areaReady}
                   >
                     <strong>Create automatically</strong>
                     <span>Generate a standard tech-spec template from the selected area, code snippet, screenshots, and process notes.</span>
@@ -2953,6 +3154,7 @@ function App() {
                     type="button"
                     className={`template-choice ${getTemplateMode(form) === 'upload' ? 'selected' : ''}`}
                     onClick={() => setTemplateMode('upload')}
+                    disabled={!areaReady}
                   >
                     <strong>Use my template</strong>
                     <span>Upload a PDF/Word template and use its headings, required tables, and style rules.</span>
@@ -2972,6 +3174,7 @@ function App() {
                           type="file"
                           accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                           onChange={handleTemplateUpload}
+                          disabled={!areaReady}
                         />
                       </label>
                     </div>
@@ -2981,6 +3184,7 @@ function App() {
                         rows={5}
                         value={form.templateOutline}
                         onChange={(event) => updateForm('templateOutline', event.target.value)}
+                        disabled={!areaReady}
                         placeholder="Paste template headings, section order, style requirements, mandatory tables, approval fields, or acceptance criteria here."
                       />
                     </label>
@@ -2988,24 +3192,24 @@ function App() {
                 ) : (
                   <div className="analysis-box">
                     <strong>Automatic template that will be used</strong>
-                    <pre>{buildAutomaticTemplateOutline(form, selectedArea)}</pre>
+                    <pre>{areaReady ? buildAutomaticTemplateOutline(form, displayArea) : 'Choose a solution area first. The app will then generate the right template sections for that area.'}</pre>
                   </div>
                 )}
               </section>
 
               <section className="input-section">
-                <h3>Process And Design Notes</h3>
+                <h3>Optional Notes</h3>
                 <label>
-                  Purpose
-                  <textarea rows={4} value={form.overview} onChange={(event) => updateForm('overview', event.target.value)} />
+                  Purpose notes
+                  <textarea rows={4} value={form.overview} onChange={(event) => updateForm('overview', event.target.value)} disabled={!areaReady} placeholder="Optional. The final purpose is generated from the document area and supplied evidence." />
                 </label>
                 <label>
-                  Business process
-                  <textarea rows={5} value={form.businessProcess} onChange={(event) => updateForm('businessProcess', event.target.value)} />
+                  Business/process notes
+                  <textarea rows={5} value={form.businessProcess} onChange={(event) => updateForm('businessProcess', event.target.value)} disabled={!areaReady} placeholder="Optional. The app prioritizes process flow derived from the code snippet or screenshot." />
                 </label>
                 <label>
                   Configuration notes
-                  <textarea rows={4} value={form.configNotes} onChange={(event) => updateForm('configNotes', event.target.value)} />
+                  <textarea rows={4} value={form.configNotes} onChange={(event) => updateForm('configNotes', event.target.value)} disabled={!areaReady} placeholder="Optional if not visible in evidence." />
                 </label>
               </section>
 
@@ -3018,6 +3222,7 @@ function App() {
                       type="file"
                       accept=".abap,.cds,.xml,.json,.js,.ts,.java,.groovy,.txt,.properties,.yaml,.yml"
                       onChange={handleCodeFileUpload}
+                      disabled={!areaReady}
                     />
                   </label>
                 </div>
@@ -3025,15 +3230,17 @@ function App() {
                   className="code-input"
                   rows={12}
                   value={form.codeSnippet}
-                  onChange={(event) => updateForm('codeSnippet', event.target.value)}
+                  onChange={(event) => handleCodeSnippetChange(event.target.value)}
+                  disabled={!areaReady}
+                  placeholder={areaReady ? 'Paste code here. Adding code clears screenshot evidence so the spec is derived from one active source.' : 'Choose a solution area before pasting code.'}
                   spellCheck="false"
                 />
                 <div className="analysis-box">
                   <strong>Code understanding</strong>
                   <ul>
-                    {detectCodeSignals(form.codeSnippet, selectedArea).map((signal) => (
+                    {areaReady ? detectCodeSignals(form.codeSnippet, displayArea).map((signal) => (
                       <li key={signal}>{signal}</li>
-                    ))}
+                    )) : <li>Choose a solution area before adding code evidence.</li>}
                   </ul>
                 </div>
               </section>
@@ -3046,12 +3253,12 @@ function App() {
                   </div>
                   <label className="upload-button">
                     Add screenshots
-                    <input type="file" accept="image/*" multiple onChange={handleScreenshotUpload} />
+                    <input type="file" accept="image/*" multiple onChange={handleScreenshotUpload} disabled={!areaReady} />
                   </label>
                 </div>
                 <label>
                   OCR language
-                  <select value={form.ocrLanguage} onChange={(event) => updateForm('ocrLanguage', event.target.value)}>
+                  <select value={form.ocrLanguage} onChange={(event) => updateForm('ocrLanguage', event.target.value)} disabled={!areaReady}>
                     {ocrLanguages.map((language) => (
                       <option key={language.id} value={language.id}>{language.name}</option>
                     ))}
@@ -3121,11 +3328,11 @@ function App() {
                 <h3>Testing, Risks, And Handover</h3>
                 <label>
                   Testing notes
-                  <textarea rows={5} value={form.testingNotes} onChange={(event) => updateForm('testingNotes', event.target.value)} />
+                  <textarea rows={5} value={form.testingNotes} onChange={(event) => updateForm('testingNotes', event.target.value)} disabled={!areaReady} placeholder="Optional. Area-specific testing is generated from the selected area and active evidence." />
                 </label>
                 <label>
                   Risks and open items
-                  <textarea rows={4} value={form.risks} onChange={(event) => updateForm('risks', event.target.value)} />
+                  <textarea rows={4} value={form.risks} onChange={(event) => updateForm('risks', event.target.value)} disabled={!areaReady} placeholder="Optional project-specific risks or open items." />
                 </label>
               </section>
             </div>
@@ -3134,12 +3341,12 @@ function App() {
               <div className="preview-toolbar">
                 <div>
                   <h3>Generated Document Text</h3>
-                  <p>{selectedArea.name} | {docFormats.find((format) => format.id === form.format)?.name}</p>
+                  <p>{areaReady ? displayArea.name : 'No solution area selected'} | {docFormats.find((format) => format.id === form.format)?.name}</p>
                 </div>
                 <div className="toolbar-actions">
-                  <button type="button" onClick={copyDocumentation}>Copy</button>
-                  <button type="button" className="secondary-button" onClick={copyConfluenceDocumentation}>Copy for Confluence</button>
-                  <button type="button" className="secondary-button" onClick={exportWord}>Download Word</button>
+                  <button type="button" onClick={copyDocumentation} disabled={!areaReady || !evidenceReady}>Copy</button>
+                  <button type="button" className="secondary-button" onClick={copyConfluenceDocumentation} disabled={!areaReady || !evidenceReady}>Copy for Confluence</button>
+                  <button type="button" className="secondary-button" onClick={exportWord} disabled={!areaReady || !evidenceReady}>Download Word</button>
                   <button type="button" className="danger-button" onClick={resetWorkspace}>Reset</button>
                 </div>
               </div>
