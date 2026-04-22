@@ -95,7 +95,7 @@ const docFormats = [
   { id: 'handover', name: 'Handover Pack', description: 'Implementation summary, evidence, risks, and next steps.' }
 ];
 
-const fairLogoPath = '/fcg-logo.png';
+const fairLogoPath = `${import.meta.env.BASE_URL || '/'}fcg-logo.png`;
 
 
 const requiredDocumentHeaders = [
@@ -436,6 +436,9 @@ function readBlobAsDataUrl(blob) {
 async function loadFairLogoDataUrl() {
   try {
     const response = await fetch(fairLogoPath);
+    if (!response.ok) {
+      throw new Error(`Could not load FAIR logo: ${response.status}`);
+    }
     const blob = await response.blob();
     return readBlobAsDataUrl(blob);
   } catch {
@@ -445,6 +448,9 @@ async function loadFairLogoDataUrl() {
 
 async function loadFairLogoBytes() {
   const response = await fetch(fairLogoPath);
+  if (!response.ok) {
+    throw new Error(`Could not load FAIR logo: ${response.status}`);
+  }
   const buffer = await response.arrayBuffer();
   return new Uint8Array(buffer);
 }
