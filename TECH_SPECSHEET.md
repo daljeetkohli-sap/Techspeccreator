@@ -110,7 +110,11 @@ The app detects common patterns in pasted or uploaded snippets, including:
 
 ### Screenshot Understanding
 
-The app does not perform OCR today. Instead, it uses the screenshot type, caption, pasted visible text, and reviewer notes to infer what the evidence represents.
+The app performs in-browser OCR on uploaded screenshot images so visible text from code screenshots, SAP CPI/iFlow screenshots, workflow screens, monitor screens, and error evidence can be captured into the specification.
+
+The OCR result is editable. Users should review and correct it before final export, because screenshot quality, zoom level, fonts, and diagram layout can affect accuracy.
+
+The app uses the screenshot type, caption, OCR-extracted text, pasted visible text, and reviewer notes to infer what the evidence represents.
 
 It can identify whether a screenshot appears related to:
 
@@ -179,10 +183,10 @@ The `.docx` output is intended to work in:
 
 ## Known Constraints
 
-- No server-side AI or OCR yet.
+- OCR is available in-browser for visible screenshot text, but full AI vision, diagram topology understanding, and server-side evidence analysis are not yet implemented.
 - PDF/DOCX template files are not deeply parsed for layout.
 - Template guidance works best when users paste required headings or rules into the Template Guidance field.
-- Screenshot interpretation depends on user-provided visible text and reviewer notes.
+- Screenshot interpretation depends on screenshot type, OCR quality, corrected visible text, and reviewer notes.
 - No authentication, shared team workspace, approval workflow, or persistent document library yet.
 - No live SAP, Azure, or BTP system connectivity.
 - No automatic repository scanning yet.
@@ -234,7 +238,7 @@ Goal: Reduce manual effort when using screenshots, code, and templates.
 
 Potential enhancements:
 
-- OCR for screenshots.
+- Higher-accuracy OCR tuned for SAP GUI, CPI/iFlow, Azure Logic Apps, ABAP editor, and IDE screenshots.
 - AI-assisted screenshot interpretation.
 - AI-assisted code explanation.
 - AI-assisted process flow extraction.

@@ -595,6 +595,15 @@ h1 {
   font-weight: 800;
 }
 
+.screenshot-fields .ocr-status {
+  padding: 9px 10px;
+  border: 1px solid #c8ddd9;
+  border-radius: 8px;
+  background: #eef7f5;
+  color: #17343b;
+  line-height: 1.35;
+}
+
 .card-actions {
   justify-content: stretch;
 }

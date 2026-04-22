@@ -32,6 +32,8 @@ npm run build
 - Choose **Create automatically** and verify the generated automatic template outline is used in Template Alignment.
 - Choose **Use my template**, upload PDF, DOC, and DOCX templates. Add template headings/style rules into Template Guidance and verify the downloaded Word spec uses that template guidance in Template Alignment.
 - Add multiple screenshot files and verify preview cards, captions, notes, and remove actions.
+- Upload a code screenshot, SAP CPI/iFlow screenshot, workflow screenshot, or monitor screenshot. Click Extract text and confirm the visible text field is populated with readable OCR output.
+- Correct any OCR mistakes in the visible text field, then confirm generated sections use the extracted text instead of generic screenshot wording.
 - Add screenshot type, visible text/object names/status messages, and notes. Click Review image and verify the generated technical interpretation appears in the document text and downloaded Word file.
 - Paste or attach ABAP, JSON, XML, JavaScript, Groovy, and CDS snippets and verify generated document text preserves formatting.
 - Verify the Code Understanding section identifies relevant patterns such as ABAP logic, OData/service exposure, CAP/CDS, Fiori/UI5, CPI/Groovy, Azure Logic Apps, Commerce, Spartacus, error handling, and possible secrets.
@@ -52,7 +54,7 @@ npm run build
 - Generated output downloads as a real `.docx` file for better Word and Google Docs compatibility.
 - Screenshot images are embedded into the downloaded Word file when uploaded in the current browser session.
 - PDF/DOCX templates are referenced and guided by the Template Guidance field; the frontend does not deeply parse every proprietary template format.
-- Screenshot understanding depends on the screenshot type, caption, pasted visible text, and reviewer notes because this frontend-only version does not perform OCR.
+- Screenshot understanding uses screenshot type, caption, OCR-extracted visible text, pasted visible text, and reviewer notes. OCR accuracy depends on image clarity and does not replace full AI vision or manual review.
 - The app currently has no backend, authentication, or shared team storage.
 
 ## Developer Notes

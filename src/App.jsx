@@ -13,6 +13,7 @@ import {
   TextRun,
   WidthType
 } from 'docx';
+import { createWorker } from 'tesseract.js';
 
 const capabilityAreas = [
   {
@@ -386,6 +387,14 @@ function createScreenshotRecord(file, dataUrl) {
     note: '',
     extractedText: ''
   };
+}
+
+function cleanOcrText(value) {
+  return String(value || '')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function readFileAsDataUrl(file) {
@@ -1300,6 +1309,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('compose');
   const [toast, setToast] = useState('');
   const [lastAction, setLastAction] = useState('');
+  const [ocrActiveId, setOcrActiveId] = useState('');
+  const [ocrStatus, setOcrStatus] = useState('');
 
   const selectedArea = capabilityAreas.find((area) => area.id === form.areaId) ?? capabilityAreas[0];
   const generatedDoc = useMemo(
@@ -1398,6 +1409,62 @@ function App() {
     setScreenshots((current) =>
       current.map((shot) => (shot.id === id ? { ...shot, [field]: value } : shot))
     );
+  }
+
+  async function extractScreenshotText(id) {
+    const shot = screenshots.find((item) => item.id === id);
+    if (!shot?.dataUrl) {
+      showToast('No image available for OCR');
+      return;
+    }
+
+    setOcrActiveId(id);
+    setOcrStatus('Preparing OCR');
+
+    let worker;
+    try {
+      worker = await createWorker('eng', 1, {
+        logger: (message) => {
+          if (!message?.status) return;
+          const progress = typeof message.progress === 'number' ? ` ${Math.round(message.progress * 100)}%` : '';
+          setOcrStatus(`${message.status}${progress}`);
+        }
+      });
+      await worker.setParameters({ preserve_interword_spaces: '1' });
+
+      const result = await worker.recognize(shot.dataUrl);
+      const text = cleanOcrText(result?.data?.text);
+
+      if (!text) {
+        setLastAction('OCR finished but did not find readable text. Try a sharper screenshot or paste the visible text manually.');
+        showToast('No readable text found');
+        return;
+      }
+
+      setScreenshots((current) =>
+        current.map((item) => {
+          if (item.id !== id) return item;
+          return {
+            ...item,
+            extractedText: item.extractedText ? `${item.extractedText}\n\n${text}` : text,
+            note: item.note || `OCR extracted visible text from ${item.name}. Review and correct the text before final export.`
+          };
+        })
+      );
+      setLastAction(`OCR extracted ${text.length.toLocaleString()} characters from ${shot.name}. Review the visible text field, then click Review image or Download Word.`);
+      showToast('OCR text extracted');
+    } catch (error) {
+      setLastAction(`OCR could not read ${shot.name}. Use a sharper image or paste visible text manually. ${error?.message || ''}`.trim());
+      showToast('OCR failed');
+    } finally {
+      try {
+        if (worker) await worker.terminate();
+      } catch {
+        // OCR cleanup should not keep the user stuck in the loading state.
+      }
+      setOcrActiveId('');
+      setOcrStatus('');
+    }
   }
 
   function applyScreenshotReview(id) {
@@ -1857,7 +1924,7 @@ function App() {
                           rows={3}
                           value={shot.extractedText}
                           onChange={(event) => updateScreenshot(shot.id, 'extractedText', event.target.value)}
-                          placeholder="Paste visible screenshot text, object names, errors, message IDs, or status values"
+                          placeholder="Use Extract text or paste visible screenshot text, object names, errors, message IDs, or status values"
                         />
                         <textarea
                           rows={3}
@@ -1866,6 +1933,14 @@ function App() {
                           placeholder="Reviewer notes and technical interpretation"
                         />
                         <div className="card-actions">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={ocrActiveId === shot.id}
+                            onClick={() => extractScreenshotText(shot.id)}
+                          >
+                            {ocrActiveId === shot.id ? 'Reading text...' : 'Extract text'}
+                          </button>
                           <button type="button" className="secondary-button" onClick={() => applyScreenshotReview(shot.id)}>
                             Review image
                           </button>
@@ -1873,10 +1948,13 @@ function App() {
                             Remove
                           </button>
                         </div>
+                        {ocrActiveId === shot.id && ocrStatus ? (
+                          <span className="ocr-status">{ocrStatus}</span>
+                        ) : null}
                       </div>
                     </article>
                   )) : (
-                    <div className="empty-state">Upload SAP GUI, Fiori, BTP cockpit, Azure, HAC, Backoffice, or code review screenshots. Add visible text or notes so the document can interpret what each image proves.</div>
+                    <div className="empty-state">Upload SAP GUI, Fiori, BTP cockpit, Azure, HAC, Backoffice, iFlow, or code review screenshots. Use Extract text or add notes so the document can interpret what each image proves.</div>
                   )}
                 </div>
               </section>
