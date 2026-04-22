@@ -247,6 +247,8 @@ Planned improvements:
 - Add a richer document preview that looks closer to the final Word output.
 - Add optional sample data/examples for each solution area.
 - Add export quality checks before download.
+- Add a spec quality score before export, covering missing process flow, missing unit testing, missing deployment/transport notes, missing monitoring/support notes, missing screenshot/code evidence, and incomplete approval fields.
+- Add screenshot annotation and redaction support so users can highlight important fields, message IDs, error text, iFlow steps, transport numbers, and blur sensitive customer or credential data before export.
 - Make the document format dropdown produce clearly different outputs for Technical Spec, Functional Spec, Support Runbook, and Handover Pack instead of only changing the document label.
 
 ### Future Document Format Expansion
@@ -276,8 +278,11 @@ Potential enhancements:
 - AI-assisted screenshot interpretation.
 - AI-assisted code explanation.
 - AI-assisted process flow extraction.
+- Workflow capture mode that records a user clicking through SAP/Fiori/CPI/Azure screens, captures each step, OCRs the evidence, and builds the process flow automatically.
+- AI-assisted screenshot annotations that place numbered pins, highlights, and callouts on important UI elements, code lines, error messages, or workflow steps.
 - Automatic field/object extraction from ABAP, CDS, XML, JSON, JavaScript, Groovy, and workflow definitions.
 - Automatic test scenario generation from code and screenshots.
+- Spec freshness detection that compares new code snippets, screenshots, or repository changes against the existing generated spec and warns when documentation may be stale.
 - Better parsing of uploaded Word/PDF templates.
 
 ### Phase 3: Team Collaboration
@@ -289,10 +294,13 @@ Potential enhancements:
 - User login and roles.
 - Shared document workspace.
 - Direct Confluence page create/update using Atlassian space key, parent page, and page ID.
+- Attach the generated Word document automatically to the matching Confluence page and update the same page on later exports instead of creating duplicates.
 - Draft, review, approved, and archived statuses.
 - Reviewer comments and change history.
 - Document versioning.
 - Approval workflow.
+- Reviewer checklist with section-level status such as Missing Detail, Needs Review, Approved, and Ready For Handover.
+- Beta feedback summary that consolidates reviewer comments, missing evidence, and open actions into a handover-ready view.
 - Customer-specific template library.
 - Centralized logo and branding management.
 
@@ -303,11 +311,14 @@ Goal: Connect the documentation process to delivery systems.
 Potential integrations:
 
 - GitHub / Azure DevOps repositories
+- Pull request to technical spec generation, including changed files, code snippets, object names, and generated documentation deltas.
+- Documentation freshness checks against GitHub/Azure DevOps changes so developers are warned when a merged change needs spec updates.
 - SAP transport references
 - SAP BTP cockpit metadata
 - SAP Integration Suite artifacts
 - Azure Logic Apps workflow JSON
 - Jira / Azure Boards work items
+- Jira task extraction from risks, open items, missing tests, deployment tasks, support actions, and approval follow-ups.
 - Confluence / SharePoint publishing
 - Google Drive / Microsoft OneDrive document storage
 
@@ -324,6 +335,8 @@ Long-term capabilities:
 - Generate support runbooks from technical specs.
 - Generate architecture/process diagrams.
 - Maintain a reusable knowledge base of solution patterns.
+- Ask-this-spec chat across generated technical specs, runbooks, screenshots, OCR text, and code snippets.
+- AI-ready exports such as Markdown bundles, `llms.txt`, and reusable spec knowledge packs for future assistants.
 - Provide customer-ready export packs with consistent FAIR branding.
 
 ## Success Criteria
