@@ -24,7 +24,7 @@ The app has been checked against the requested beta behavior:
 | Document name should be derived from evidence | Implemented. The app derives title from code filename, detected code object, CPI/iFlow name, or screenshot caption/evidence before falling back. |
 | Most content should come from code/screenshot | Implemented and improved. Process flow, technical design, screenshot interpretation, code understanding, and testing focus are evidence-driven. Manual notes are supporting context. |
 | No hardcoded sample content in beta flow | Implemented. Active sample defaults were removed and migrated away from saved local state. |
-| CPI/iFlow screenshot should be understood | Improved. The app now has iFlow screenshot type, OCR preprocessing, and CPI-specific extraction for iFlow name, adapters, source/target, mapping, auth, logging, and exception subprocesses. |
+| Screenshots from any supported area should be understood | Improved. The app now treats OCR text, screenshot captions, and reviewer notes as implementation evidence across ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, SAP Commerce, RAP, BW/Datasphere, and MDG. CPI/iFlow has an additional specialized extractor. |
 | Blank or missing input sections should be skipped | Implemented. Code and screenshot sections are only included when evidence exists. Missing inputs are not called out in the generated document. |
 | Word export should be real `.docx` | Implemented. The app exports a real Word document with embedded generated logo, optional customer logo, screenshots, and technical flow diagram. |
 | Confluence-ready option should exist | Implemented. The app can copy Confluence-friendly HTML with headings, tables, lists, code blocks, and rendered flow diagram. |
@@ -49,7 +49,7 @@ The app displays readiness checks when required inputs are missing. Example chec
 - Solution area must be selected.
 - Provide exactly one active evidence path.
 - Screenshot evidence should have OCR text or reviewer notes.
-- CPI/iFlow screenshots need visible step labels, adapters, systems, or iFlow name for strong extraction.
+- Screenshots need visible text or reviewer notes, such as object names, service/entity names, code snippets, UI labels, error text, workflow actions, adapters, systems, or file names, for strong extraction.
 - Document name could not be confidently derived from evidence.
 
 ### Solution Area Coverage
@@ -154,6 +154,31 @@ Depending on format and evidence, the app can generate:
 
 Code sections are skipped when code is not supplied. Screenshot sections are skipped when screenshots are not supplied.
 
+## Dynamic Screenshot Understanding
+
+Screenshot understanding is not limited to CPI/iFlow diagrams. The app now uses screenshot OCR text, captions, screenshot type, and reviewer notes as active implementation evidence for every supported solution area.
+
+From screenshots, the app can infer or contribute to:
+
+- Document name from visible file names, object names, service names, components, workflows, extensions, or screenshot captions.
+- Business process and process flow from visible code, workflow steps, UI labels, error messages, actions, or notes.
+- Technical design sections using the selected solution area's checklist and the evidence visible in the screenshot.
+- Technical flow diagram steps from detected trigger/input, persistence, mapping, validation, API/service calls, UI behavior, security, exception handling, monitoring, and support signals.
+- Testing and monitoring focus from visible logs, message IDs, run history, error text, application logs, screenshots, or reviewer notes.
+
+Examples of supported screenshot evidence:
+
+- ABAP program/class/report screenshots from SE38, SE80, ADT, or code review tools.
+- CAP/Node.js screenshots showing `service.cds`, entities, handlers, Express routes, package files, API handlers, or service bindings.
+- Fiori/UI5 screenshots showing `manifest.json`, controller, component, annotations, app UI, launchpad intent, or OData calls.
+- SAP Commerce screenshots showing extensions, `items.xml`, impex, facades, populators, cronjobs, OCC, Backoffice, or HAC evidence.
+- Spartacus screenshots showing Angular modules, routes, CMS mappings, guards/resolvers, facades, OCC calls, or storefront behavior.
+- Azure Logic Apps screenshots showing triggers, connectors, run history, workflow JSON, action outputs, and retry/failure behavior.
+- BW/Datasphere screenshots showing providers, transformations, queries, reconciliation, scheduling, or data quality evidence.
+- MDG screenshots showing change request type, workflow, BRF+ validation/derivation, UI, replication, or audit trail evidence.
+
+The app still depends on readable evidence. If OCR cannot capture the important text, users should paste visible text or add reviewer notes.
+
 ## SAP Integration Suite / CPI Understanding
 
 The latest CPI/iFlow work improves screenshot-based document generation for SAP Integration Suite.
@@ -173,7 +198,7 @@ For iFlow screenshots, the app can now infer:
 
 The app uses OCR preprocessing to improve small iFlow label recognition by enlarging and increasing screenshot contrast before browser OCR runs.
 
-Important beta note: CPI/iFlow extraction is still OCR and rules based. It is improved, but not full AI vision. Screenshot quality and visible text matter.
+Important beta note: CPI/iFlow extraction is still OCR and rules based. It is improved, but not full AI vision. Screenshot quality and visible text matter. The same principle applies to every other screenshot type.
 
 ## Code Understanding
 
@@ -218,6 +243,7 @@ Process flow generation is now evidence-first.
 The app derives flow from:
 
 - CPI/iFlow steps and subprocesses when visible
+- ABAP, CAP/Node.js, Fiori/UI5, Commerce, Spartacus, Azure, BW, MDG, and generic architecture/code screenshot signals when visible
 - Code operations and detected implementation patterns
 - Screenshot OCR text and reviewer notes
 - Optional business/process notes if evidence does not provide enough detail
@@ -309,8 +335,9 @@ Direct Confluence page create/update via Atlassian API is not implemented yet.
 
 These are the remaining gaps after the latest validation:
 
-- Full AI vision is not implemented. Screenshot understanding is OCR plus rules.
+- Full AI vision is not implemented. Screenshot understanding is OCR plus cross-area rules.
 - CPI/iFlow topology extraction is improved but still depends on readable labels.
+- Non-CPI screenshots are interpreted from visible OCR text, screenshot type, caption, and notes; screenshots without readable text still need human notes.
 - OCR may miss small labels, dense diagrams, or low-resolution screenshots.
 - PDF/DOCX template parsing is text-oriented and does not deeply preserve layout.
 - No backend API exists yet.
@@ -330,6 +357,7 @@ Beta testing should validate:
 - Users understand the one-active-evidence-source rule.
 - Document title is correctly derived from real evidence.
 - CPI/iFlow screenshots produce meaningful integration specs.
+- ABAP, CAP/Node.js, Fiori/UI5, Commerce, Spartacus, Azure Logic Apps, BW/Datasphere, and MDG screenshots produce meaningful area-specific specs when visible text or notes are supplied.
 - Code snippets produce meaningful object/process/technical sections.
 - Missing input sections are skipped instead of called out.
 - Readiness checks are useful and not annoying.
@@ -364,7 +392,7 @@ Completed or mostly completed:
 - Evidence required before export.
 - Code-vs-screenshot cache clearing.
 - Dynamic document name from evidence.
-- CPI/iFlow screenshot extraction improvements.
+- Cross-area screenshot evidence extraction for ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, Commerce, RAP, BW/Datasphere, and MDG.
 - Real Word export.
 - Confluence-ready copy.
 - Generic ABC Consulting branding and optional customer logo.
@@ -390,7 +418,7 @@ Planned capabilities:
 - AI-assisted screenshot interpretation.
 - AI-assisted code explanation.
 - AI-assisted process flow extraction.
-- Better iFlow topology extraction from screenshots and, where available, exported iFlow XML/artifacts.
+- Better topology extraction from screenshots and, where available, exported artifacts such as iFlow XML, CAP project files, ABAP objects, UI5 manifests, Logic App JSON, Commerce extensions, and workflow/configuration exports.
 - Automatic field/object extraction from ABAP, CDS, XML, JSON, JavaScript, Groovy, and workflow definitions.
 - Automatic test scenario generation from code and screenshots.
 - Spec freshness detection against new code, screenshots, or repository changes.

@@ -713,6 +713,18 @@ function extractMatches(text, patterns) {
   return [...new Set(values)].slice(0, 12);
 }
 
+function getScreenshotEvidenceText(screenshots) {
+  return (screenshots || [])
+    .flatMap((shot) => [shot.screenType, shot.caption, shot.name, shot.extractedText, shot.note])
+    .map(safeLine)
+    .filter(Boolean)
+    .join('\n');
+}
+
+function getActiveEvidenceText(form, screenshots) {
+  return [getActiveCodeSnippet(form), getScreenshotEvidenceText(screenshots || [])].map(safeLine).filter(Boolean).join('\n');
+}
+
 function uniqueItems(values) {
   return values
     .map(safeLine)
@@ -908,10 +920,21 @@ function inferCodeDetails(code, area) {
   const lower = text.toLowerCase();
   const details = {
     objects: extractMatches(text, [
+      /\bREPORT\s+([a-zA-Z_][\w/]*)/gi,
+      /\bCLASS\s+([a-zA-Z_][\w/]*)\s+(?:DEFINITION|IMPLEMENTATION)?/gi,
+      /\bMETHOD\s+([a-zA-Z_][\w/]*)/gi,
+      /\bFUNCTION\s+([a-zA-Z_][\w/]*)/gi,
       /\b(?:class|method|function|form|module|entity|service|action|workflow|trigger)\s+([a-zA-Z_][\w/-]*)/gi,
+      /\b(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:async\s*)?\(/gi,
+      /\b(?:async\s+)?function\s+([a-zA-Z_$][\w$]*)/gi,
+      /\b(?:srv|service)\.(?:on|before|after)\s*\(\s*['"]([^'"]+)['"]/gi,
+      /\bapp\.(?:get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi,
+      /\b(?:controllerName|componentName|sap\.app["']?\s*:\s*{[^}]*id)\s*[:=]\s*['"]([^'"]+)['"]/gi,
+      /\b(?:extension|module|facade|populator|cronjob|impex|items\.xml)\s+([a-zA-Z_][\w/-]*)/gi,
       /\b(?:DATA|TYPES)\s*\(\s*([a-zA-Z_][\w]*)\s*\)/gi,
       /\bCALL FUNCTION\s+'([^']+)'/gi,
-      /\b(?:FROM|JOIN|UPDATE|MODIFY|INSERT INTO)\s+([a-zA-Z_][\w/]*)/gi
+      /\b(?:FROM|JOIN|UPDATE|MODIFY|INSERT INTO)\s+([a-zA-Z_][\w/]*)/gi,
+      /\b(?:define\s+(?:root\s+)?(?:view\s+entity|entity)|entity)\s+([a-zA-Z_][\w/]*)/gi
     ]),
     validations: [],
     integrations: [],
@@ -955,15 +978,80 @@ function collectEvidenceSummary(screenshots) {
 }
 
 function getActiveCodeSnippet(form) {
+  if (!form) return '';
   return evidenceLine(form, 'codeSnippet');
+}
+
+function extractGenericEvidenceFacts(form, area, screenshots) {
+  const context = [
+    getActiveEvidenceText(form, screenshots),
+    form ? evidenceLine(form, 'businessProcess') : '',
+    form ? evidenceLine(form, 'overview') : '',
+    form ? evidenceLine(form, 'system') : ''
+  ].map(safeLine).filter(Boolean).join('\n');
+  const lower = context.toLowerCase();
+  const codeDetails = inferCodeDetails(context, area);
+  const systems = uniqueItems(extractMatches(context, [
+    /\b(S\/4HANA|SAP\s*ECC|SAPECC|SAP\s*BTP|SAP\s*Commerce|Commerce\s*Cloud|Spartacus|FarEye|Azure|Logic\s*Apps|Confluence|Jira|HANA|HDI|XSUAA|OData|OCC)\b/gi,
+    /\b(?:source|sender|from)\s*(?:system|app|application)?\s*[:=-]\s*([A-Za-z0-9 _/-]{3,40})/gi,
+    /\b(?:target|receiver|to)\s*(?:system|app|application|endpoint)?\s*[:=-]\s*([A-Za-z0-9 _/-]{3,40})/gi
+  ]));
+  const titleCandidates = uniqueItems([
+    ...codeDetails.objects,
+    ...extractMatches(context, [
+      /\b(?:file|artifact|program|object|service|workflow|app|component|extension|iflow)\s*(?:name|id)?\s*[:=-]\s*([A-Za-z0-9_./-]{3,80})/gi,
+      /\b([A-Z][A-Za-z0-9]+(?:Service|Controller|Component|Handler|Router|Facade|Populator|CronJob|Workflow|LogicApp))\b/g,
+      /\b([ZY][A-Z0-9_]{4,})\b/g
+    ])
+  ]);
+  const processSteps = [];
+  const addStep = (condition, step) => {
+    if (condition && !processSteps.includes(step)) processSteps.push(step);
+  };
+
+  addStep(/report|selection-screen|select-options|parameter|start-of-selection|abap|se38|adt|class|method/i.test(context), 'Identify ABAP entry point, selection inputs, class/method, and transport context from screenshot/code evidence');
+  addStep(/select\b|from\b|join\b|cds|define view|entity|items\.xml|database|hana|persist|repository/i.test(context), 'Read or persist business/application data using the tables, entities, item types, or repositories visible in evidence');
+  addStep(/service|odata|api|endpoint|app\.(get|post|put|patch|delete)|router|occ|destination|http/i.test(context), 'Expose or call service/API endpoint shown in the evidence');
+  addStep(/payload|json|xml|mapping|transform|deserialize|serialize|converter|mapper/i.test(context), 'Parse, map, or transform payload/data structures identified in the evidence');
+  addStep(/validate|required|mandatory|if\s|case|switch|where|filter|guard|resolver|annotation/i.test(context), 'Apply validation, routing, filtering, annotations, guards, or business rules visible in the evidence');
+  addStep(/oauth|jwt|xsuaa|role|authorization|authority-check|credential|secret|certificate|managed identity/i.test(context), 'Apply authorization, role, credential, certificate, or identity handling identified in evidence');
+  addStep(/ui5|fiori|manifest|component|controller|view|fragment|semantic object|launchpad|annotation/i.test(context), 'Render Fiori/UI behavior, navigation, annotations, component/controller, or launchpad intent shown in screenshot/code');
+  addStep(/cap|cds|srv\.|service\.cds|event handler|before|after|on\s*\(/i.test(context), 'Execute CAP service/entity handler logic and validations identified in evidence');
+  addStep(/commerce|spartacus|cms|occ|facade|populator|impex|cronjob|backoffice|hac|items\.xml/i.test(context), 'Process SAP Commerce/Spartacus extension, CMS/OCC, facade/populator, impex, cronjob, or Backoffice/HAC behavior');
+  addStep(/logic app|workflow|trigger|connector|run history|compose|parse json|condition/i.test(context), 'Execute Azure Logic Apps trigger, connector, action, condition, retry, or run-history path shown in evidence');
+  addStep(/error|exception|catch|failed|timeout|retry|reprocess|log|trace|monitor|message id|correlation/i.test(context), 'Log, monitor, retry, reprocess, or route exception outcome identified in evidence');
+
+  const observations = uniqueItems([
+    titleCandidates.length ? `Technical object/artifact candidates: ${titleCandidates.slice(0, 5).join(', ')}.` : '',
+    systems.length ? `System or platform candidates: ${systems.slice(0, 5).join(', ')}.` : '',
+    codeDetails.integrations.length ? 'Evidence includes service/API/integration indicators.' : '',
+    codeDetails.persistence.length ? 'Evidence includes persistence or data model indicators.' : '',
+    codeDetails.security.length ? 'Evidence includes security/authorization indicators.' : '',
+    codeDetails.errors.length ? 'Evidence includes exception, logging, or failure handling indicators.' : '',
+    codeDetails.operations.length ? 'Evidence includes transformation, mapping, or business logic indicators.' : ''
+  ]);
+
+  return {
+    hasEvidence: Boolean(safeLine(context)),
+    context,
+    lower,
+    title: titleCandidates[0] || '',
+    systems,
+    processSteps,
+    diagramSteps: processSteps.map((step) => step.replace(/^(Identify|Read or persist|Expose or call|Parse, map, or transform|Apply|Render|Execute|Process|Log, monitor, retry, reprocess, or route)\s+/i, '')).slice(0, 16),
+    observations,
+    codeDetails
+  };
 }
 
 function getEvidenceTitleFromInputs(form, area, screenshots) {
   if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
-  const codeDetails = inferCodeDetails(getActiveCodeSnippet(form), area);
+  const codeDetails = inferCodeDetails(getActiveEvidenceText(form, screenshots), area);
   if (codeDetails.objects.length) return humanizeArtifactName(codeDetails.objects[0]);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.iflowName) return iflowFacts.iflowName;
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
+  if (genericFacts.title) return humanizeArtifactName(genericFacts.title);
   const firstScreenshot = screenshots[0];
   if (firstScreenshot && !isWeakScreenshotDefault(firstScreenshot.caption || firstScreenshot.name)) {
     return humanizeArtifactName(firstScreenshot.caption || firstScreenshot.name);
@@ -990,6 +1078,10 @@ function deriveBusinessProcessText(form, area, screenshots) {
       iflowFacts.runtimeStatus ? `runtime status: ${iflowFacts.runtimeStatus}` : ''
     ].filter(Boolean).join('; ');
     return `${summary}. Process evidence: ${iflowFacts.processSteps.slice(0, 10).join(' -> ')}.`;
+  }
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
+  if (genericFacts.processSteps.length) {
+    return `Process inferred from ${screenshots.length ? 'screenshot' : 'code'} evidence: ${genericFacts.processSteps.slice(0, 10).join(' -> ')}.`;
   }
   const screenshotText = screenshots
     .map((shot, index) => {
@@ -1031,6 +1123,8 @@ function deriveSystemText(form, area, screenshots) {
     iflowFacts?.targetSystem
   ]).join(', ');
   if (inferredSystems) return inferredSystems;
+  const genericSystems = extractGenericEvidenceFacts(form, area, screenshots).systems.join(', ');
+  if (genericSystems) return genericSystems;
   return evidenceLine(form, 'system');
 }
 
@@ -1054,16 +1148,27 @@ function getEvidenceProfile(form, area, screenshots) {
 
 function areaSpecificDetails(area, codeDetails, screenshots) {
   const evidence = collectEvidenceSummary(screenshots);
-  const objectText = codeDetails.objects.length ? codeDetails.objects.join(', ') : 'objects to be confirmed from repository/package';
+  const screenshotDetails = inferCodeDetails(getScreenshotEvidenceText(screenshots), area);
+  const evidenceDetails = {
+    objects: uniqueItems([...codeDetails.objects, ...screenshotDetails.objects]),
+    validations: uniqueItems([...codeDetails.validations, ...screenshotDetails.validations]),
+    integrations: uniqueItems([...codeDetails.integrations, ...screenshotDetails.integrations]),
+    persistence: uniqueItems([...codeDetails.persistence, ...screenshotDetails.persistence]),
+    security: uniqueItems([...codeDetails.security, ...screenshotDetails.security]),
+    errors: uniqueItems([...codeDetails.errors, ...screenshotDetails.errors]),
+    operations: uniqueItems([...codeDetails.operations, ...screenshotDetails.operations])
+  };
+  const genericFacts = extractGenericEvidenceFacts(null, area, screenshots);
+  const objectText = evidenceDetails.objects.length ? evidenceDetails.objects.join(', ') : 'objects to be confirmed from repository/package';
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(null, screenshots) : null;
   const base = {
     'sap-abap': {
       'ABAP object inventory': [`ABAP objects identified or referenced: ${objectText}.`, 'Document object type, package, transport, activation status, and runtime entry point.', 'Confirm whether objects are custom Z/Y objects or extensions to standard SAP behavior.'],
-      'Selection and business logic': [...codeDetails.validations, ...codeDetails.operations, 'Capture selection-screen parameters, filters, default values, and business rule branches.'],
-      'Data access and CDS model': [...codeDetails.persistence, 'List SAP tables, CDS views, structures, keys, joins, and read/write impact.'],
+      'Selection and business logic': [...evidenceDetails.validations, ...evidenceDetails.operations, 'Capture selection-screen parameters, filters, default values, and business rule branches.'],
+      'Data access and CDS model': [...evidenceDetails.persistence, 'List SAP tables, CDS views, structures, keys, joins, and read/write impact.'],
       'Enhancements and exits': ['Confirm whether this is a BAdI, user exit, enhancement spot, implicit enhancement, custom report/class, or RAP/service extension.'],
       'Performance and locking': ['Document expected volume, SELECT strategy, indexes, buffering, enqueue/dequeue locking, update task, and commit/rollback behavior.'],
-      'Error handling and application log': [...codeDetails.errors, 'Document message class/number, exception class, SLG1/application log object, and recovery steps.'],
+      'Error handling and application log': [...evidenceDetails.errors, 'Document message class/number, exception class, SLG1/application log object, and recovery steps.'],
       'Transport and deployment': ['Document transport request, package, dependencies, activation sequence, retrofit needs, and post-import validation.']
     },
     'sap-integration': {
@@ -1073,8 +1178,8 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
         iflowFacts?.sourceSystem || iflowFacts?.targetSystem ? `Business data direction: ${iflowFacts.sourceSystem || 'source system'} to ${iflowFacts.targetSystem || 'target system'}.` : '',
         iflowFacts?.deploymentStatus ? `Deployment status captured: ${iflowFacts.deploymentStatus}.` : '',
         iflowFacts?.runtimeStatus ? `Runtime status captured: ${iflowFacts.runtimeStatus}.` : '',
-        ...codeDetails.integrations,
-        ...codeDetails.operations,
+        ...evidenceDetails.integrations,
+        ...evidenceDetails.operations,
         ...(evidence.length ? [`Evidence reviewed: ${evidence[0]}`] : [])
       ],
       'Sender and receiver adapters': [
@@ -1086,17 +1191,17 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
       'Message mapping and transformation': [
         ...(iflowFacts?.mappingSteps || []).map((step) => `Mapping step identified: ${step}.`),
         ...(iflowFacts?.mainSteps || []).filter((step) => /map|payload|attachment/i.test(step)).map((step) => `Main process step identified: ${step}.`),
-        ...codeDetails.operations,
+        ...evidenceDetails.operations,
         'Document source-to-target field mapping, mandatory values, payload normalization, and any Groovy/content modifier behavior.'
       ],
       'Security material': [
         ...(iflowFacts?.authSteps || []).map((step) => `Authorization subprocess step identified: ${step}.`),
-        ...codeDetails.security,
+        ...evidenceDetails.security,
         'Document FarEye/API credential alias, OAuth/client-secret owner, certificate or destination dependency, and rotation process.'
       ],
       'Exception subprocess and retry': [
         ...(iflowFacts?.exceptionSteps || []).map((step) => `Exception handling evidence: ${step}.`),
-        ...codeDetails.errors,
+        ...evidenceDetails.errors,
         'Document retry count, idempotency, duplicate handling, alerting, and manual reprocess path.'
       ],
       'Monitoring and reprocessing': [
@@ -1109,74 +1214,74 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
       'Fiori app intent and navigation': ['Document semantic object/action, launchpad tile, target mapping, inbound/outbound navigation, and primary user action.'],
       'UI/UX behavior': ['Document screen layout, field behavior, mandatory indicators, value helps, table/list behavior, buttons, messages, and user decision points.', ...evidence.slice(0, 2)],
       'Fiori Elements annotations': ['Document floorplan, annotation files, UI facets, line items, identification, field groups, actions, side effects, and presentation variants.'],
-      'UI5 components and extensions': [...codeDetails.objects.map((item) => `Component/object reference: ${item}.`), 'Document manifest, component, controller extension, fragment, formatter, model, and routing changes.'],
-      'OData and service binding': [...codeDetails.integrations, 'Document service URL, entity sets, operation/action imports, bindings, draft/read/update behavior, and backend service owner.'],
+      'UI5 components and extensions': [...evidenceDetails.objects.map((item) => `Component/object reference: ${item}.`), ...genericFacts.observations, 'Document manifest, component, controller extension, fragment, formatter, model, and routing changes.'],
+      'OData and service binding': [...evidenceDetails.integrations, 'Document service URL, entity sets, operation/action imports, bindings, draft/read/update behavior, and backend service owner.'],
       'Launchpad content and deployment': ['Document content provider, app descriptor, catalog/group/space/page, role collection, deployment target, and cache/republish steps.'],
-      'Roles and authorizations': [...codeDetails.security, 'Document role collections, catalog access, backend PFCG/authorization objects, and business role dependencies.'],
+      'Roles and authorizations': [...evidenceDetails.security, 'Document role collections, catalog access, backend PFCG/authorization objects, and business role dependencies.'],
       'Accessibility and responsive behavior': ['Document keyboard navigation, labels, value-state messages, responsive layout behavior, device support, and accessibility considerations.']
     },
     'sap-cap': {
-      'Domain model and entities': [...codeDetails.persistence, `Entities/services detected or referenced: ${objectText}.`],
-      'Service API contract': [...codeDetails.integrations, 'Document service definitions, exposed entities, actions, events, API paths, and request/response behavior.'],
-      'Event handlers and validations': [...codeDetails.operations, ...codeDetails.errors, 'Document custom handlers, validations, side effects, and transaction handling.'],
-      'Persistence and data model': [...codeDetails.persistence, 'Document database artifacts, migrations, tenant isolation, seed data, and data retention assumptions.'],
-      'Authentication and authorization': [...codeDetails.security, 'Document XSUAA scopes/roles, restrictions annotations, identity provider, and role collections.'],
+      'Domain model and entities': [...evidenceDetails.persistence, `Entities/services detected or referenced: ${objectText}.`],
+      'Service API contract': [...evidenceDetails.integrations, 'Document service definitions, exposed entities, actions, events, API paths, and request/response behavior.'],
+      'Event handlers and validations': [...evidenceDetails.operations, ...evidenceDetails.errors, 'Document custom handlers, validations, side effects, and transaction handling.'],
+      'Persistence and data model': [...evidenceDetails.persistence, 'Document database artifacts, migrations, tenant isolation, seed data, and data retention assumptions.'],
+      'Authentication and authorization': [...evidenceDetails.security, 'Document XSUAA scopes/roles, restrictions annotations, identity provider, and role collections.'],
       'Deployment and service bindings': ['Document MTA/modules, service bindings, destinations, HDI/container, Cloud Foundry/Kyma target, and environment variables.'],
       'Testing and mock data': ['Document unit/integration tests, mocked services, seed data, API test collections, and deployment smoke tests.']
     },
     'azure-logic-apps': {
       'Workflow trigger': ['Document trigger type, schedule/event/source, schema, and sample payload.'],
-      'Action sequence': [...codeDetails.operations, `Workflow/action references: ${objectText}.`],
-      'Connectors and identities': [...codeDetails.integrations, ...codeDetails.security, 'Document connector accounts, SAP/Azure endpoints, managed identity, and permission model.'],
-      'Data operations and expressions': [...codeDetails.operations, 'Document compose/parse JSON/condition expressions, variables, and field mapping.'],
-      'Retry and exception policy': [...codeDetails.errors, 'Document retry count, backoff, timeout, idempotency, scoped error handling, and duplicate handling.'],
+      'Action sequence': [...evidenceDetails.operations, `Workflow/action references: ${objectText}.`],
+      'Connectors and identities': [...evidenceDetails.integrations, ...evidenceDetails.security, 'Document connector accounts, SAP/Azure endpoints, managed identity, and permission model.'],
+      'Data operations and expressions': [...evidenceDetails.operations, 'Document compose/parse JSON/condition expressions, variables, and field mapping.'],
+      'Retry and exception policy': [...evidenceDetails.errors, 'Document retry count, backoff, timeout, idempotency, scoped error handling, and duplicate handling.'],
       'Run history and diagnostics': ['Attach run IDs, action outputs, failure screenshots, and correlation IDs.', ...evidence.slice(0, 2)],
       'Environment configuration': ['Document connections, parameters, app settings, Key Vault references, and environment-specific values.']
     },
     'sap-spartacus': {
       'Feature module and routing': [`Feature/component references: ${objectText}.`, 'Document Angular module, route, guards, and lazy loading behavior.'],
       'CMS component mapping': ['Document CMS component mapping, slot/page dependency, page template, and content setup.'],
-      'OCC API integration': [...codeDetails.integrations, 'Document OCC endpoint, request/response model, facade/adapter/converter, and error handling.'],
-      'Storefront UI/UX behavior': [...codeDetails.operations, 'Document user journey, page states, empty/error/loading states, and responsive behavior.'],
+      'OCC API integration': [...evidenceDetails.integrations, 'Document OCC endpoint, request/response model, facade/adapter/converter, and error handling.'],
+      'Storefront UI/UX behavior': [...evidenceDetails.operations, 'Document user journey, page states, empty/error/loading states, and responsive behavior.'],
       'State management and guards': ['Document facade usage, NgRx/store impact, guards, resolvers, and route protection.'],
       'Responsive and accessibility behavior': ['Document mobile/desktop behavior, keyboard support, ARIA labels, and accessibility constraints.'],
       'Testing and regression scope': ['Document unit/e2e scenarios, mocked OCC responses, regression areas, and browser/device coverage.']
     },
     'sap-commerce': {
       'Extension and module changes': [`Extension/object references: ${objectText}.`, 'Document extension, module, spring configuration, and build/update steps.'],
-      'Items XML and type system': [...codeDetails.persistence, 'Document item types, attributes, relations, indexes, and deployment/update impact.'],
-      'Service/facade/populator logic': [...codeDetails.operations, 'Document service/facade/populator/converter changes and data flow between layers.'],
+      'Items XML and type system': [...evidenceDetails.persistence, 'Document item types, attributes, relations, indexes, and deployment/update impact.'],
+      'Service/facade/populator logic': [...evidenceDetails.operations, 'Document service/facade/populator/converter changes and data flow between layers.'],
       'Impex and sample data': ['Document impex files, sample data, environment-specific values, and rollback approach.'],
       'Cronjobs and tasks': ['Document cronjob/service/facade behavior, schedule, triggers, and monitoring location if applicable.'],
       'Backoffice and HAC validation': [...evidence.slice(0, 2), 'Document Backoffice screens, HAC scripts, FlexibleSearch, and operational validation.'],
       'Deployment and system update': ['Document system update, initialization impact, build pipeline, cloud hot folder/media migration, and rollback.']
     },
     'sap-rap': {
-      'RAP data model': [...codeDetails.persistence, `Root/projection objects detected or referenced: ${objectText}.`],
-      'Behavior definition and implementation': [...codeDetails.operations, ...codeDetails.validations, 'Document managed/unmanaged behavior, actions, determinations, validations, and behavior pool methods.'],
-      'Projection and service exposure': [...codeDetails.integrations, 'Document projection views, service definition, service binding, publication status, and protocol.'],
+      'RAP data model': [...evidenceDetails.persistence, `Root/projection objects detected or referenced: ${objectText}.`],
+      'Behavior definition and implementation': [...evidenceDetails.operations, ...evidenceDetails.validations, 'Document managed/unmanaged behavior, actions, determinations, validations, and behavior pool methods.'],
+      'Projection and service exposure': [...evidenceDetails.integrations, 'Document projection views, service definition, service binding, publication status, and protocol.'],
       'Fiori Elements annotations': ['Document UI annotations, facets, line items, identification, field groups, actions, side effects, and value helps.'],
       'Draft and locking behavior': ['Document draft enablement, locks, ETags, numbering, save/activate flow, and concurrent edit behavior.'],
-      'Authorization and feature control': [...codeDetails.security, 'Document authorization master, instance authorization, feature control, and business role dependencies.'],
+      'Authorization and feature control': [...evidenceDetails.security, 'Document authorization master, instance authorization, feature control, and business role dependencies.'],
       'Service binding and publication': ['Document binding type, preview app, published service URL, transport, and activation/deployment steps.']
     },
     'sap-bw': {
       'Source system and extraction': ['Document source system, extractor/connection, delta method, and source dependencies.'],
-      'Data model/provider': [...codeDetails.persistence, `Provider/model references: ${objectText}.`],
-      'Transformations and business rules': [...codeDetails.operations, 'Document transformation rules, routines, currency/unit handling, and semantic mappings.'],
+      'Data model/provider': [...evidenceDetails.persistence, `Provider/model references: ${objectText}.`],
+      'Transformations and business rules': [...evidenceDetails.operations, 'Document transformation rules, routines, currency/unit handling, and semantic mappings.'],
       'Queries and consumption model': ['Document query/view, variables, restricted/calculated key figures, hierarchies, and consuming reports.'],
       'Scheduling and dependencies': ['Document process chain, task chain, schedule, dependencies, restart point, and SLA.'],
       'Reconciliation and data quality': ['Document record counts, totals, duplicate checks, exception reports, and reconciliation evidence.', ...evidence.slice(0, 2)],
-      'Authorization and transport': [...codeDetails.security, 'Document analysis authorizations, spaces/roles, transport path, and post-import validation.']
+      'Authorization and transport': [...evidenceDetails.security, 'Document analysis authorizations, spaces/roles, transport path, and post-import validation.']
     },
     'sap-mdg': {
       'Master data object and scope': [`Master data/entity references: ${objectText}.`, 'Document object scope, create/change/display behavior, and governance domain.'],
       'Change request type': ['Document CR type, steps, priorities, statuses, and triggering business scenario.'],
-      'MDG data model and UI': [...codeDetails.persistence, 'Document entity type, attributes, UI configuration, feeder classes, and field properties.'],
+      'MDG data model and UI': [...evidenceDetails.persistence, 'Document entity type, attributes, UI configuration, feeder classes, and field properties.'],
       'Workflow and approvals': ['Document workflow path, approver roles, agent determination, escalation, and rejection/rework behavior.'],
-      'Validations and derivations': [...codeDetails.validations, ...codeDetails.operations, 'Document BRF+ rules, derivations, duplicate checks, and error messages.'],
-      'Replication and key mapping': [...codeDetails.integrations, 'Document target systems, DRF/replication model, key mapping, and outbound status handling.'],
-      'Governance roles and audit trail': [...codeDetails.security, 'Document governance roles, authorization, audit fields, change history, and compliance evidence.']
+      'Validations and derivations': [...evidenceDetails.validations, ...evidenceDetails.operations, 'Document BRF+ rules, derivations, duplicate checks, and error messages.'],
+      'Replication and key mapping': [...evidenceDetails.integrations, 'Document target systems, DRF/replication model, key mapping, and outbound status handling.'],
+      'Governance roles and audit trail': [...evidenceDetails.security, 'Document governance roles, authorization, audit fields, change history, and compliance evidence.']
     }
   };
 
@@ -1185,7 +1290,7 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
 
 function buildSectionInsights(area, section, form, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
-  const codeDetails = inferCodeDetails(evidenceProfile.codeSnippet, area);
+  const codeDetails = inferCodeDetails(getActiveEvidenceText(form, screenshots), area);
   const specific = areaSpecificDetails(area, codeDetails, screenshots)[section] || [];
   const evidence = collectEvidenceSummary(screenshots);
   const generic = [
@@ -1210,8 +1315,9 @@ function buildSectionInsights(area, section, form, screenshots) {
 
 function buildImplementationSummary(form, area, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
-  const codeDetails = inferCodeDetails(evidenceProfile.codeSnippet, area);
-  const signals = detectCodeSignals(evidenceProfile.codeSnippet, area);
+  const evidenceText = getActiveEvidenceText(form, screenshots);
+  const codeDetails = inferCodeDetails(evidenceText, area);
+  const signals = detectCodeSignals(evidenceText, area);
   const evidence = collectEvidenceSummary(screenshots);
   const summary = [
     `This specification documents ${evidenceProfile.title} for ${area.name}.`,
@@ -1250,6 +1356,10 @@ function buildProcessFlowSteps(form, area, screenshots) {
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.processSteps?.length) {
     return iflowFacts.processSteps.slice(0, 18);
+  }
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
+  if (genericFacts.processSteps.length >= 2) {
+    return genericFacts.processSteps.slice(0, 18);
   }
   const describedSteps = extractBusinessProcessSteps(evidenceProfile.businessProcess);
   if (describedSteps.length) {
@@ -1333,6 +1443,8 @@ function buildTechnicalDiagramSteps(form, area, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.diagramSteps?.length >= 3) return iflowFacts.diagramSteps.slice(0, 16);
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
+  if (genericFacts.diagramSteps.length >= 3) return genericFacts.diagramSteps.slice(0, 16);
   const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(evidenceProfile.businessProcess));
   if (describedSteps.length >= 3) return describedSteps.slice(0, 16);
 
@@ -1708,9 +1820,11 @@ function buildUnitTestingPlan(area, form) {
 function buildIntegrationTestingPlan(area, form, screenshots) {
   const profile = getValidationProfile(area);
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   const evidence = collectEvidenceSummary(screenshots);
   return [
     evidenceProfile.businessProcess ? `End-to-end test path: ${evidenceProfile.businessProcess}` : '',
+    genericFacts.processSteps.length ? `Validate inferred evidence path: ${genericFacts.processSteps.slice(0, 5).join(' -> ')}` : '',
     evidence.length ? `Evidence to attach: ${evidence[0]}` : '',
     !evidenceProfile.businessProcess && !evidence.length && evidenceProfile.testingNotes ? profile.integration[0] : ''
   ].filter(Boolean);
@@ -2083,6 +2197,7 @@ function getScreenshotObservations(shot, area, contextOverride) {
   const context = contextOverride ?? [shot.caption, shot.note, shot.extractedText, shot.name, shot.screenType].map(safeLine).join(' ').toLowerCase();
   const observations = [];
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(null, [shot]) : null;
+  const genericFacts = extractGenericEvidenceFacts(null, area, [shot]);
 
   if (shot.screenType) observations.push(`Screenshot type: ${shot.screenType}.`);
   if (safeLine(shot.caption)) observations.push(`Caption reviewed: ${safeLine(shot.caption)}.`);
@@ -2097,6 +2212,15 @@ function getScreenshotObservations(shot, area, contextOverride) {
     if (iflowFacts.authSteps.length) observations.push(`Authorization subprocess visible: ${iflowFacts.authSteps.join(' -> ')}.`);
     if (iflowFacts.mappingSteps.length) observations.push(`Mapping subprocess visible: ${iflowFacts.mappingSteps.join(' -> ')}.`);
     if (iflowFacts.exceptionSteps.length) observations.push(`Exception handling visible: ${iflowFacts.exceptionSteps.join(', ')}.`);
+    return observations;
+  }
+
+  if (genericFacts.hasEvidence && genericFacts.observations.length) {
+    observations.push(...genericFacts.observations);
+    if (genericFacts.processSteps.length) observations.push(`Process/technical flow inferred: ${genericFacts.processSteps.slice(0, 6).join(' -> ')}.`);
+    if (/code review|ide|abap|cap|node|commerce|spartacus|fiori|logic|workflow|architecture/i.test(context)) {
+      observations.push(`Technical interpretation: evidence is treated as ${area.name} implementation evidence and should populate object inventory, process flow, testing, monitoring, and handover sections from the visible code/screen content.`);
+    }
     return observations;
   }
 
