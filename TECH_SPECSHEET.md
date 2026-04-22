@@ -183,6 +183,7 @@ For beta use, the recommended publishing model is:
 
 - React
 - Vite
+- GitHub Pages-ready static deployment
 - Browser-only runtime
 - Local browser state using `localStorage`
 - No backend dependency
@@ -201,6 +202,7 @@ For beta use, the recommended publishing model is:
 
 ## Known Constraints
 
+- The MVP demo deployment is frontend-only; no backend/API has been deployed yet.
 - OCR is available in-browser for visible screenshot text, but full AI vision, diagram topology understanding, and server-side evidence analysis are not yet implemented.
 - PDF/DOCX template files are not deeply parsed for layout.
 - Template guidance works best when users paste required headings or rules into the Template Guidance field.

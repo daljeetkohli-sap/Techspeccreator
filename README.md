@@ -28,7 +28,9 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 ## Developer Handoff
 
 - Use `BETA_TESTING.md` for the beta test checklist.
+- Use `DEMO_DEPLOYMENT.md` for the MVP demo deployment steps.
 - The app is frontend-only and does not require backend services.
+- GitHub Pages deployment is configured through `.github/workflows/deploy-demo.yml`; after Pages is enabled with GitHub Actions as the source, pushes to `main` deploy the static demo.
 - Screenshot images stay in the active browser session; exported `.docx` documents contain embedded logos, screenshots, figure descriptions, captured visible text, and generated technical interpretation.
 - OCR is available for visible text extraction from screenshots, but the app does not yet perform full server-side AI vision or diagram topology understanding. Testers should review and correct OCR output before exporting customer-facing specs.
 - The app can read plain text from some uploaded template files, but it does not deeply parse every PDF/DOCX layout in-browser. For best template alignment, testers should paste the required headings, section order, and style rules into Template Guidance after uploading the template.
