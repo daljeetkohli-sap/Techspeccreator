@@ -366,10 +366,23 @@ const initialForm = {
   customerLogoDataUrl: ''
 };
 
+const oldSampleOverview =
+  'Documents the delivered change using screenshots, implementation notes, and code snippets so support and project teams can understand the solution quickly.';
+
+function migrateSavedForm(form) {
+  if (!form) return form;
+  return {
+    ...form,
+    overview: safeLine(form.overview) === oldSampleOverview ? initialForm.overview : form.overview
+  };
+}
+
 function loadSavedWorkspace() {
   try {
     const saved = window.localStorage.getItem('techdoc-studio-workspace');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const workspace = JSON.parse(saved);
+    return workspace?.form ? { ...workspace, form: migrateSavedForm(workspace.form) } : workspace;
   } catch {
     return null;
   }
