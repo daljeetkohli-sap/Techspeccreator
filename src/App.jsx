@@ -1293,179 +1293,6 @@ function buildDocumentation(form, area, screenshots) {
     `${body}\n`;
 }
 
-function buildWordDocument(form, area, screenshots, fairLogoSrc = fairLogoPath) {
-  const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
-  const codeSignals = detectCodeSignals(form.codeSnippet, area);
-  const implementationSummary = buildImplementationSummary(form, area, screenshots);
-  const processFlowSteps = buildProcessFlowSteps(form, area, screenshots);
-  const templateMode = getTemplateMode(form);
-  const templateGuidance = getTemplateGuidance(form, area);
-  const templateRows = templateMode === 'upload'
-    ? `
-      <tr><th>Template decision</th><td>Use my template</td></tr>
-      <tr><th>Template file</th><td>${escapeHtml(form.templateName)}</td></tr>
-      <tr><th>Template type</th><td>${escapeHtml(form.templateType || 'Uploaded template')}</td></tr>
-      <tr><th>Template guidance</th><td>${escapeHtml(templateGuidance)}</td></tr>
-    `
-    : `<tr><th>Template source</th><td>FAIR standard technical specification</td></tr>`;
-  const areaPromptRows = getChecklistRows(area).map((row) => `<tr><td>${escapeHtml(row.item)}</td><td>${escapeHtml(row.detail)}</td></tr>`).join('');
-  const technicalSections = area.sections.map((section) => `
-    <h3>${escapeHtml(section)}</h3>
-    ${htmlList(buildSectionInsights(area, section, form, screenshots))}
-  `).join('');
-  const unitTesting = buildUnitTestingPlan(area, form);
-  const integrationTesting = buildIntegrationTestingPlan(area, form, screenshots);
-  const regressionTesting = buildRegressionTestingPlan(area, form);
-  const deploymentPlan = buildDeploymentPlan(area, form);
-  const monitoringSupport = buildMonitoringSupportPlan(area, form, screenshots);
-  const areaRisks = buildAreaRiskControls(area, form);
-  const approvalHandover = buildApprovalHandoverPlan(area);
-  const screenshotEvidenceBlocks = screenshots.length
-    ? screenshots.map((shot, index) => {
-      return `
-        <div class="figure">
-          <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
-          ${shot.dataUrl ? `<img src="${shot.dataUrl}" alt="${escapeHtml(shot.caption || shot.name)}">` : ''}
-          <table>
-            <tr><th>Type</th><td>${escapeHtml(shot.screenType)}</td></tr>
-            <tr><th>File</th><td>${escapeHtml(shot.name)} (${formatBytes(shot.size)})</td></tr>
-            <tr><th>Visible text</th><td>${escapeHtml(safeLine(shot.extractedText) || 'Not captured')}</td></tr>
-            <tr><th>Reviewer notes</th><td>${escapeHtml(safeLine(shot.note) || 'Not captured')}</td></tr>
-          </table>
-        </div>
-      `;
-    }).join('')
-    : '';
-  const screenshotReviewBlocks = screenshots.length
-    ? screenshots.map((shot, index) => `
-      <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
-      ${htmlList(getScreenshotObservations(shot, area))}
-    `).join('')
-    : '';
-  const customerLogoBlock = form.customerLogoDataUrl
-    ? `
-      <div class="customer-logo">
-        <span>Customer</span>
-        <img src="${form.customerLogoDataUrl}" alt="${escapeHtml(form.customerLogoName || 'Customer logo')}">
-      </div>
-    `
-    : '<div class="customer-logo empty"><span>Customer logo optional</span></div>';
-
-  return `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>${escapeHtml(safeLine(form.title) || 'Technical Documentation')}</title>
-    <!--[if gte mso 9]>
-    <xml>
-      <w:WordDocument>
-        <w:View>Print</w:View>
-        <w:Zoom>100</w:Zoom>
-        <w:DoNotOptimizeForBrowser/>
-      </w:WordDocument>
-    </xml>
-    <![endif]-->
-    <style>
-      @page { margin: 1in; }
-      body { font-family: Calibri, Arial, sans-serif; color: #1f2933; line-height: 1.45; }
-      h1 { color: #12343b; font-size: 26pt; margin-bottom: 8px; }
-      h2 { color: #1f5d6c; border-bottom: 1px solid #b7c7cf; padding-bottom: 4px; margin-top: 24px; }
-      h3 { color: #243b4a; margin-top: 16px; }
-      .brandbar { display: table; width: 100%; margin-bottom: 22px; border-bottom: 2px solid #1f5d6c; padding-bottom: 12px; }
-      .fair-logo, .customer-logo { display: table-cell; vertical-align: middle; }
-      .fair-logo img { max-width: 260px; width: 260px; height: auto; border: 0; margin: 0; }
-      .fair-logo .tagline { display: block; color: #52646f; font-size: 9pt; margin-top: 5px; }
-      .customer-logo { text-align: right; color: #52646f; font-size: 9pt; font-weight: 700; }
-      .customer-logo img { max-width: 160px; max-height: 70px; width: auto; height: auto; border: 0; margin: 3px 0 0; }
-      .customer-logo span { display: block; margin-bottom: 3px; }
-      table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; }
-      th, td { border: 1px solid #c8d4da; padding: 8px; vertical-align: top; text-align: left; }
-      th { background: #e8f2f4; width: 28%; }
-      pre { background: #f4f7f8; border: 1px solid #c8d4da; padding: 12px; white-space: pre-wrap; font-family: Consolas, monospace; }
-      img { max-width: 620px; width: 100%; height: auto; border: 1px solid #c8d4da; margin: 8px 0 12px; }
-      .figure { page-break-inside: avoid; margin-bottom: 22px; }
-    </style>
-  </head>
-  <body>
-    <div class="brandbar">
-      <div class="fair-logo">
-        <img src="${fairLogoSrc}" alt="FAIR Consulting Group logo">
-        <span class="tagline">Technical documentation generated by FAIR Consulting Group</span>
-      </div>
-      ${customerLogoBlock}
-    </div>
-    <h1>${escapeHtml(safeLine(form.title) || 'Technical Documentation')}</h1>
-    <table>
-      <tr><th>Document type</th><td>${escapeHtml(selectedFormat.name)}</td></tr>
-      <tr><th>Solution area</th><td>${escapeHtml(area.name)}</td></tr>
-      <tr><th>Owner</th><td>${escapeHtml(safeLine(form.owner) || 'TBD')}</td></tr>
-      <tr><th>Systems</th><td>${escapeHtml(safeLine(form.system) || 'TBD')}</td></tr>
-      <tr><th>Generated</th><td>${escapeHtml(new Date().toLocaleString())}</td></tr>
-      ${templateRows}
-    </table>
-
-    <h2>1. Purpose</h2>
-    ${htmlParagraph(form.overview, 'Describe why this documentation exists and what work was completed.')}
-
-    <h2>2. Generated Implementation Summary</h2>
-    ${htmlList(implementationSummary)}
-
-    <h2>3. Process Flow</h2>
-    ${htmlOrderedList(processFlowSteps)}
-
-    <h2>4. Business Process</h2>
-    ${htmlParagraph(form.businessProcess, 'Describe the end-to-end process, trigger, users/systems, and expected result.')}
-
-    <h2>5. Template Alignment</h2>
-    ${htmlParagraph(templateGuidance, 'Standard generated technical specification structure used.')}
-
-    <h2>6. Solution Area Checklist</h2>
-    <table><tr><th>Item</th><th>Detail</th></tr>${areaPromptRows}</table>
-
-    <h2>7. Technical Design</h2>
-    ${technicalSections}
-
-    <h2>8. Configuration Notes</h2>
-    ${htmlParagraph(form.configNotes, 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.')}
-
-    <h2>9. Code Understanding</h2>
-    ${htmlList(codeSignals)}
-
-    <h2>10. Code Snippet</h2>
-    <pre>${escapeHtml(form.codeSnippet || '')}</pre>
-
-    <h2>11. Screenshot Evidence</h2>
-    ${screenshotEvidenceBlocks}
-
-    <h2>12. Screenshot Review And Technical Interpretation</h2>
-    ${screenshotReviewBlocks}
-
-    <h2>13. Unit Testing</h2>
-    ${htmlList(unitTesting)}
-
-    <h2>14. Integration Testing</h2>
-    ${htmlList(integrationTesting)}
-
-    <h2>15. Regression Testing And UAT</h2>
-    ${htmlList(regressionTesting)}
-
-    <h2>16. Deployment And Transport</h2>
-    ${htmlList(deploymentPlan)}
-
-    <h2>17. Monitoring And Support</h2>
-    ${htmlList(monitoringSupport)}
-
-    <h2>18. Risks, Assumptions, And Open Items</h2>
-    ${htmlList(areaRisks)}
-
-    <h2>19. Approval And Handover</h2>
-    ${htmlList(approvalHandover)}
-  </body>
-</html>`;
-}
-
 function App() {
   const savedWorkspace = loadSavedWorkspace();
   const [form, setForm] = useState(savedWorkspace?.form ?? initialForm);
@@ -1488,9 +1315,9 @@ function App() {
       words,
       screenshots: screenshots.length,
       completedFields,
-      sections: requiredDocumentHeaders.length + selectedArea.sections.length
+      sections: (generatedDoc.match(/^##\s+\d+\./gm) || []).length
     };
-  }, [form, generatedDoc, screenshots.length, selectedArea.sections.length]);
+  }, [form, generatedDoc, screenshots.length]);
 
   useEffect(() => {
     window.localStorage.setItem('techdoc-studio-workspace', JSON.stringify({ form }));
@@ -1781,12 +1608,13 @@ function App() {
           </label>
 
           <div className="area-sections">
-            <strong>Always included headers</strong>
+            <strong>Core document headers</strong>
             <ul>
-              {requiredDocumentHeaders.slice(0, 8).map((header) => (
+              {['Purpose', 'Implementation Summary', 'Process Flow', 'Business Process', 'Template Alignment', 'Technical Design'].map((header) => (
                 <li key={header}>{header}</li>
               ))}
-              <li>Unit Testing, Integration Testing, Regression/UAT, Deployment, Monitoring, Risks, and Handover</li>
+              <li>Testing, deployment, monitoring, risks, and handover when supported by inputs</li>
+              <li>Code and screenshot sections only when artifacts are supplied</li>
             </ul>
           </div>
 

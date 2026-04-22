@@ -6,7 +6,8 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 
 - Provides solution-area presets for SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori apps, SAP CAP apps, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
 - Changes the checklist and technical design sections dynamically by solution area, so ABAP, Fiori, CAP, Integration, Commerce, and other SAP areas get different document sections.
-- Always includes the core technical-spec headers: purpose, implementation summary, process flow, business process, template alignment, checklist, technical design, configuration, code understanding, screenshot evidence/review, unit testing, integration testing, regression/UAT, deployment, monitoring/support, risks, and approval handover.
+- Generates core technical-spec headers such as purpose, implementation summary, process flow, business process, template alignment, checklist, technical design, configuration, testing, deployment, monitoring/support, risks, and approval handover.
+- Adds code and screenshot sections only when those artifacts are supplied.
 - Generates area-specific checklist details, testing strategy, risk controls, support notes, and technical design guidance for every supported solution area.
 - Captures document title, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
 - Adds the official FAIR CONSULTING GROUP logo to every generated document and supports an optional customer logo upload for the Word export header.
@@ -16,7 +17,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Uploads screenshot evidence and lets you add captions, visible text, screenshot type, and reviewer notes for each figure.
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
-- Generates a structured `.docx` Word file with the required generic headers, embedded FAIR/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
+- Generates a structured `.docx` Word file with embedded FAIR/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
 - Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Downloads a real `.docx` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
