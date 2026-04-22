@@ -13,6 +13,7 @@ import {
   TextRun,
   WidthType
 } from 'docx';
+import JSZip from 'jszip';
 import { createWorker } from 'tesseract.js';
 
 const capabilityAreas = [
@@ -93,6 +94,14 @@ const docFormats = [
   { id: 'technical', name: 'Technical Spec', description: 'Objects, services, logic, configuration, and deployment notes.' },
   { id: 'runbook', name: 'Support Runbook', description: 'Monitoring, troubleshooting, recovery, and ownership.' },
   { id: 'handover', name: 'Handover Pack', description: 'Implementation summary, evidence, risks, and next steps.' }
+];
+
+const ocrLanguages = [
+  { id: 'eng', name: 'English' },
+  { id: 'eng+deu', name: 'English + German' },
+  { id: 'eng+fra', name: 'English + French' },
+  { id: 'eng+spa', name: 'English + Spanish' },
+  { id: 'eng+ita', name: 'English + Italian' }
 ];
 
 const brandName = 'ABC Consulting';
@@ -374,6 +383,7 @@ const initialForm = {
   templateName: '',
   templateType: '',
   templateOutline: '',
+  ocrLanguage: 'eng',
   customerLogoName: '',
   customerLogoType: '',
   customerLogoDataUrl: ''
@@ -440,6 +450,67 @@ function readBlobAsDataUrl(blob) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+function decodeXmlEntities(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function cleanTemplateText(value) {
+  return String(value || '')
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 4000);
+}
+
+async function extractDocxTemplateText(file) {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const documentXml = await zip.file('word/document.xml')?.async('string');
+  if (!documentXml) return '';
+
+  const paragraphTexts = documentXml
+    .split(/<\/w:p>/i)
+    .map((paragraphXml) => {
+      const textRuns = [...paragraphXml.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi)]
+        .map((match) => decodeXmlEntities(match[1]));
+      return textRuns.join('');
+    })
+    .map(cleanTemplateText)
+    .filter(Boolean);
+
+  return paragraphTexts.join('\n');
+}
+
+async function extractPdfTemplateText(file) {
+  const raw = new TextDecoder('latin1').decode(await file.arrayBuffer());
+  const candidates = [...raw.matchAll(/\(([^()]{4,180})\)\s*T[jJ]/g)]
+    .map((match) => match[1])
+    .concat([...raw.matchAll(/<([0-9A-Fa-f\s]{8,})>\s*T[jJ]/g)]
+      .map((match) => {
+        const hex = match[1].replace(/\s+/g, '');
+        const bytes = [];
+        for (let index = 0; index < hex.length - 1; index += 2) {
+          bytes.push(parseInt(hex.slice(index, index + 2), 16));
+        }
+        return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
+      }));
+
+  return cleanTemplateText(candidates.join('\n'));
+}
+
+async function extractTemplateText(file, extension) {
+  if (extension === 'docx') return cleanTemplateText(await extractDocxTemplateText(file));
+  if (extension === 'pdf') return cleanTemplateText(await extractPdfTemplateText(file));
+  if (extension === 'doc') return '';
+  return cleanTemplateText(await file.text());
 }
 
 function dataUrlToBytes(dataUrl) {
@@ -522,14 +593,14 @@ function detectCodeSignals(code, area) {
   const signals = [];
 
   const checks = [
-    [/^\s*(data|select|loop|if|call function|class|method|raise exception)\b/im, 'ABAP logic detected: variables, conditions, database access, function/class usage, or exception handling.'],
-    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'OData/service exposure detected: document service entity, binding, annotations, and authorization behavior.'],
-    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'CAP/CDS pattern detected: document entities, services, handlers, persistence, and deployment target.'],
-    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Fiori/UI5 pattern detected: document component structure, manifest routing, models, views, and launchpad intent.'],
-    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'SAP Integration Suite/CPI pattern detected: document adapter flow, mapping, script step, headers/properties, and monitoring.'],
-    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Azure Logic Apps workflow pattern detected: document trigger, connectors, actions, retry policy, and run history.'],
-    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'SAP Commerce pattern detected: document extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
-    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'SAP Spartacus pattern detected: document Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
+    [/^\s*(data|select|loop|call function|method|raise exception)\b|\/iwbep\/|authority-check|sy-subrc|abap_true/im, 'Likely ABAP/SAP backend indicators found: verify object type, database access, validations, function/class usage, and exception handling.'],
+    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'Likely OData/service exposure indicators found: verify service entity, binding, annotations, and authorization behavior.'],
+    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'Likely CAP/CDS indicators found: verify entities, services, handlers, persistence, and deployment target.'],
+    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Likely Fiori/UI5 indicators found: verify component structure, manifest routing, models, views, and launchpad intent.'],
+    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'Likely SAP Integration Suite/CPI indicators found: verify adapter flow, mapping, script step, headers/properties, and monitoring.'],
+    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Likely Azure Logic Apps indicators found: verify trigger, connectors, actions, retry policy, and run history.'],
+    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'Likely SAP Commerce indicators found: verify extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
+    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'Likely SAP Spartacus indicators found: verify Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
     [/try\s*\{|catch\s*\(|raise exception|throw new|exception/i, 'Error handling detected: document validation failures, exception mapping, retries, and user/support messages.'],
     [/password|secret|client_secret|apikey|api-key|bearer\s+[a-z0-9]/i, 'Security-sensitive token pattern found: remove secrets from documentation and store credentials in a vault/destination.']
   ];
@@ -859,22 +930,22 @@ function buildTechnicalDiagramSteps(form, area, screenshots) {
     if (condition && !steps.includes(label)) steps.push(label);
   };
 
-  addStep(hasAny(context, [/trigger|schedule|event|button|tile|launchpad|source|sender|workflow|http|api|request|payload/]), 'Receive trigger or user action');
-  addStep(hasAny(context, [/payload|json|xml|message|body|request/]) || codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)), 'Read incoming payload');
-  addStep(codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)) || hasAny(context, [/deserialize|serialize|parse|json|xml/]), 'Parse source structure');
-  addStep(codeDetails.operations.some((item) => /mapping|transformation/i.test(item)) || hasAny(context, [/mapping|transform|content modifier|message mapping|field mapping/]), 'Map source fields to target');
-  addStep(codeDetails.validations.length || hasAny(context, [/mandatory|required|validate|validation|is initial|invalid|missing/]), 'Validate mandatory fields');
-  addStep(hasAny(context, [/rule|condition|case|switch|if |filter|where|loop|business rule/]), 'Apply business rules');
-  addStep(codeDetails.security.length || hasAny(context, [/role|authorization|oauth|credential|destination|secret|certificate|authority-check/]), 'Check access and credentials');
-  addStep(codeDetails.integrations.length || hasAny(context, [/adapter|iflow|odata|service|api|connector|logic app|occ|receiver|sender|endpoint/]), 'Call integration or service layer');
-  addStep(hasAny(context, [/receiver|target|sap|s\/4|commerce|btp|azure|endpoint/]), 'Route to target system');
-  addStep(codeDetails.persistence.length || hasAny(context, [/select|read|entity|table|cds|database/]), 'Read target data');
-  addStep(codeDetails.persistence.length || hasAny(context, [/insert|update|modify|delete|persist|commit|posted|created|updated/]), 'Create or update records');
-  addStep(hasAny(context, [/response|acknowledg|confirmation|status|200|ok|success|completed|processed|green/]), 'Return status or confirmation');
-  addStep(codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/]), 'Log and route exceptions');
-  addStep(hasAny(context, [/retry|reprocess|dead letter|queue|resubmit/]), 'Retry or reprocess failed item');
-  addStep(hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/]), 'Monitor logs and message IDs');
-  addStep(safeLine(form.testingNotes), 'Validate with test evidence');
+  addStep(hasAny(context, [/trigger|schedule|event|button|tile|launchpad|source|sender|workflow|http|api|request|payload/]), 'Inferred from evidence: receive trigger or user action');
+  addStep(hasAny(context, [/payload|json|xml|message|body|request/]) || codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)), 'Inferred from evidence: read incoming payload');
+  addStep(codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)) || hasAny(context, [/deserialize|serialize|parse|json|xml/]), 'Inferred from code/evidence: parse source structure');
+  addStep(codeDetails.operations.some((item) => /mapping|transformation/i.test(item)) || hasAny(context, [/mapping|transform|content modifier|message mapping|field mapping/]), 'Inferred from evidence: map source fields to target');
+  addStep(codeDetails.validations.length || hasAny(context, [/mandatory|required|validate|validation|is initial|invalid|missing/]), 'Inferred from evidence: validate mandatory fields');
+  addStep(hasAny(context, [/rule|condition|case|switch|if |filter|where|loop|business rule/]), 'Inferred from evidence: apply business rules');
+  addStep(codeDetails.security.length || hasAny(context, [/role|authorization|oauth|credential|destination|secret|certificate|authority-check/]), 'Inferred from evidence: check access and credentials');
+  addStep(codeDetails.integrations.length || hasAny(context, [/adapter|iflow|odata|service|api|connector|logic app|occ|receiver|sender|endpoint/]), 'Inferred from evidence: call integration or service layer');
+  addStep(hasAny(context, [/receiver|target|sap|s\/4|commerce|btp|azure|endpoint/]), 'Inferred from evidence: route to target system');
+  addStep(codeDetails.persistence.length || hasAny(context, [/select|read|entity|table|cds|database/]), 'Inferred from evidence: read target data');
+  addStep(codeDetails.persistence.length || hasAny(context, [/insert|update|modify|delete|persist|commit|posted|created|updated/]), 'Inferred from evidence: create or update records');
+  addStep(hasAny(context, [/response|acknowledg|confirmation|status|200|ok|success|completed|processed|green/]), 'Inferred from evidence: return status or confirmation');
+  addStep(codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/]), 'Inferred from evidence: log and route exceptions');
+  addStep(hasAny(context, [/retry|reprocess|dead letter|queue|resubmit/]), 'Inferred from evidence: retry or reprocess failed item');
+  addStep(hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/]), 'Inferred from evidence: monitor logs and message IDs');
+  addStep(safeLine(form.testingNotes), 'Provided by tester: validate with test evidence');
 
   if (steps.length >= 3) return steps.slice(0, 16);
   return buildProcessFlowSteps(form, area, screenshots)
@@ -1140,6 +1211,31 @@ function buildTemplateAlignmentContent(form, area) {
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
+}
+
+function buildFormatFocusItems(form, area) {
+  if (form.format === 'functional') {
+    return [
+      'Functional Spec focus: business scope, actors, process behavior, business rules, user experience, UAT, and acceptance criteria.',
+      `For ${area.name}, confirm the functional outcomes expected from each selected solution-area checklist item.`
+    ];
+  }
+  if (form.format === 'runbook') {
+    return [
+      'Support Runbook focus: ownership, monitoring, alerting, diagnostics, recovery, reprocessing, escalation, and operational risks.',
+      `For ${area.name}, make support paths explicit enough for first-line and second-line teams to act.`
+    ];
+  }
+  if (form.format === 'handover') {
+    return [
+      'Handover Pack focus: delivered scope, design/configuration summary, evidence, testing outcome, deployment status, support ownership, and open items.',
+      `For ${area.name}, include enough implementation context for developers and support teams to take ownership.`
+    ];
+  }
+  return [
+    'Technical Spec focus: objects, services, logic, configuration, testing, deployment, monitoring, risks, and handover.',
+    `For ${area.name}, keep the dynamic technical design sections aligned with the actual evidence supplied.`
+  ];
 }
 
 function getChecklistRows(area) {
@@ -1470,6 +1566,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
   addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
+  addSection('Document Type Focus', docBullets(buildFormatFocusItems(form, area)));
   addSection('Solution Area Checklist', [docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail]))]);
   addSection('Technical Design', area.sections.flatMap((section) => [
     docHeading(section, HeadingLevel.HEADING_3),
@@ -1583,8 +1680,7 @@ function getScreenshotObservations(shot, area, contextOverride) {
   return observations;
 }
 
-function buildDocumentation(form, area, screenshots) {
-  const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+function buildFormatSpecificSections(form, area, screenshots) {
   const areaPrompts = getChecklistRows(area).map((row) => `- ${row.item}: ${row.detail}`).join('\n');
   const sectionDetails = area.sections.map((section) => {
     const insights = buildSectionInsights(area, section, form, screenshots);
@@ -1599,36 +1695,100 @@ function buildDocumentation(form, area, screenshots) {
   const deploymentPlan = bulletList(buildDeploymentPlan(area, form));
   const monitoringSupport = bulletList(buildMonitoringSupportPlan(area, form, screenshots));
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
-  const sections = [
-    ['Purpose', safeLine(form.overview) || 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.'],
+  const codeSections = safeLine(form.codeSnippet)
+    ? [
+      ['Code Understanding', buildCodeUnderstanding(form, area)],
+      ['Code Snippet', `\`\`\`\n${form.codeSnippet}\n\`\`\``]
+    ]
+    : [];
+  const screenshotSections = screenshots.length
+    ? [
+      ['Screenshot Evidence', screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')],
+      ['Screenshot Review And Technical Interpretation', screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')]
+    ]
+    : [];
+  const approval = `${bulletList(buildApprovalHandoverPlan(area))}\n\n| Field | Detail |\n| --- | --- |\n${buildApprovalRows().map(([field, value]) => `| ${field} | ${value} |`).join('\n')}`;
+  const commonStart = [
+    ['Purpose', safeLine(form.overview) || 'Explain why this document is being created, which solution or change it covers, who will use it, and how it supports review, testing, deployment, support, and handover.'],
     ['Generated Implementation Summary', implementationSummary],
     ['Revision History', revisionHistory],
     ['Process Flow', processFlow],
     ['Business Process', safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'],
     ['Template Alignment', buildTemplateAlignmentContent(form, area)],
+    ['Document Type Focus', bulletList(buildFormatFocusItems(form, area))]
+  ];
+
+  if (form.format === 'functional') {
+    return [
+      ...commonStart,
+      ['Functional Scope And Requirements', areaPrompts],
+      ['Business Rules And User Experience', bulletList([
+        safeLine(form.businessProcess) ? `Business journey: ${safeLine(form.businessProcess)}` : '',
+        'Document actors, trigger events, decision points, approvals, exceptions, and expected business outcomes.',
+        'Confirm value help, validation messages, mandatory fields, and acceptance criteria with business users.'
+      ])],
+      ...screenshotSections,
+      ['UAT And Acceptance Criteria', `${integrationTesting}\n${regressionTesting}`],
+      ['Risks, Assumptions, And Open Items', areaRisks],
+      ['Approval And Handover', approval]
+    ];
+  }
+
+  if (form.format === 'runbook') {
+    return [
+      ...commonStart,
+      ['Component And Ownership Summary', areaPrompts],
+      ['Monitoring And Alerting', monitoringSupport],
+      ['Troubleshooting And Diagnostics', bulletList([
+        'Use captured message IDs, application logs, run history, browser console/network traces, or SAP transaction logs to locate failures.',
+        safeLine(form.testingNotes) ? `Known validation evidence: ${safeLine(form.testingNotes)}` : '',
+        'Record first-response checks, common failure symptoms, and the team responsible for each recovery step.'
+      ])],
+      ['Recovery And Reprocessing', bulletList([
+        'Define retry/reprocess path, rollback option, correction owner, and business communication steps.',
+        'Confirm what support can safely re-run and what requires developer/project approval.'
+      ])],
+      ...screenshotSections,
+      ['Risks, Assumptions, And Open Items', areaRisks],
+      ['Approval And Handover', approval]
+    ];
+  }
+
+  if (form.format === 'handover') {
+    return [
+      ...commonStart,
+      ['Delivered Scope', implementationSummary],
+      ['Technical And Configuration Handover', `${sectionDetails}\n\n### Configuration Notes\n${safeLine(form.configNotes) || 'Document configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}`],
+      ...codeSections,
+      ...screenshotSections,
+      ['Testing Evidence Summary', `${unitTesting}\n${integrationTesting}\n${regressionTesting}`],
+      ['Deployment, Monitoring, And Support Ownership', `${deploymentPlan}\n${monitoringSupport}`],
+      ['Risks, Assumptions, And Open Items', areaRisks],
+      ['Approval And Handover', approval]
+    ];
+  }
+
+  return [
+    ...commonStart,
     ['Solution Area Checklist', areaPrompts],
     ['Technical Design', sectionDetails],
     ['Configuration Notes', safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'],
-    ...(safeLine(form.codeSnippet)
-      ? [
-        ['Code Understanding', buildCodeUnderstanding(form, area)],
-        ['Code Snippet', `\`\`\`\n${form.codeSnippet}\n\`\`\``]
-      ]
-      : []),
-    ...(screenshots.length
-      ? [
-        ['Screenshot Evidence', screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')],
-        ['Screenshot Review And Technical Interpretation', screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')]
-      ]
-      : []),
+    ...codeSections,
+    ...screenshotSections,
     ['Unit Testing', unitTesting],
     ['Integration Testing', integrationTesting],
     ['Regression Testing And UAT', regressionTesting],
     ['Deployment And Transport', deploymentPlan],
     ['Monitoring And Support', monitoringSupport],
     ['Risks, Assumptions, And Open Items', areaRisks],
-    ['Approval And Handover', `${bulletList(buildApprovalHandoverPlan(area))}\n\n| Field | Detail |\n| --- | --- |\n${buildApprovalRows().map(([field, value]) => `| ${field} | ${value} |`).join('\n')}`]
-  ].filter(([, content]) => safeLine(content));
+    ['Approval And Handover', approval]
+  ];
+}
+
+function buildDocumentation(form, area, screenshots) {
+  const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const sections = buildFormatSpecificSections(form, area, screenshots)
+    .filter(([, content]) => safeLine(content));
 
   const body = sections
     .map(([title, content], index) => `## ${index + 1}. ${title}\n${content}`)
@@ -1911,7 +2071,8 @@ function App() {
 
     let worker;
     try {
-      worker = await createWorker('eng', 1, {
+      const language = safeLine(form.ocrLanguage) || 'eng';
+      worker = await createWorker(language, 1, {
         logger: (message) => {
           if (!message?.status) return;
           const progress = typeof message.progress === 'number' ? ` ${Math.round(message.progress * 100)}%` : '';
@@ -1939,7 +2100,8 @@ function App() {
           };
         })
       );
-      setLastAction(`OCR extracted ${text.length.toLocaleString()} characters from ${shot.name}. Review the visible text field, then click Review image or Download Word.`);
+      const languageName = ocrLanguages.find((item) => item.id === language)?.name || language;
+      setLastAction(`OCR extracted ${text.length.toLocaleString()} characters from ${shot.name} using ${languageName}. Review the visible text field, then click Review image or Download Word.`);
       showToast('OCR text extracted');
     } catch (error) {
       setLastAction(`OCR could not read ${shot.name}. Use a sharper image or paste visible text manually. ${error?.message || ''}`.trim());
@@ -2051,20 +2213,20 @@ function App() {
     }));
 
     try {
-      const text = await file.text();
-      const readableText = text
-        .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 2500);
+      const readableText = await extractTemplateText(file, extension);
 
-      if (readableText.length > 120 && !['pdf', 'docx'].includes(extension)) {
+      if (readableText.length > 120) {
         updateForm('templateOutline', readableText);
-        showToast('Template text loaded and will be used');
+        showToast(`${templateType} template text loaded`);
       } else {
-        showToast('Template uploaded. Paste key headings if needed.');
+        const message = extension === 'doc'
+          ? 'Legacy DOC uploaded. Paste headings because browser parsing is limited.'
+          : 'Template uploaded. Paste key headings if needed.';
+        updateForm('templateOutline', `${templateType} template uploaded from ${file.name}. No readable section text was extracted in the browser. Paste headings, mandatory tables, approval fields, or style rules here for stronger alignment.`);
+        showToast(message);
       }
     } catch {
+      updateForm('templateOutline', `${templateType} template uploaded from ${file.name}. The browser could not extract readable text. Paste headings, mandatory tables, approval fields, or style rules here for stronger alignment.`);
       showToast('Template uploaded. Paste key headings if needed.');
     } finally {
       event.target.value = '';
@@ -2421,12 +2583,23 @@ function App() {
 
               <section className="input-section">
                 <div className="section-row">
-                  <h3>Screenshot Evidence</h3>
+                  <div>
+                    <h3>Screenshot Evidence</h3>
+                    <p className="helper-copy">OCR is browser-based. Choose the closest language before extracting text.</p>
+                  </div>
                   <label className="upload-button">
                     Add screenshots
                     <input type="file" accept="image/*" multiple onChange={handleScreenshotUpload} />
                   </label>
                 </div>
+                <label>
+                  OCR language
+                  <select value={form.ocrLanguage} onChange={(event) => updateForm('ocrLanguage', event.target.value)}>
+                    {ocrLanguages.map((language) => (
+                      <option key={language.id} value={language.id}>{language.name}</option>
+                    ))}
+                  </select>
+                </label>
 
                 <div className="screenshot-grid">
                   {screenshots.length ? screenshots.map((shot, index) => (
