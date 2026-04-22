@@ -928,20 +928,25 @@ function extractIntegrationFlowFacts(form, screenshots) {
     exceptionSteps.length ? 'Route technical failures to exception subprocess and log error message' : ''
   ]);
   const diagramSteps = uniqueItems([
-    systems.source || /amqp|sender/i.test(context) ? `${source} AMQP message` : '',
-    mainSteps.includes('Set Standard Headers') ? 'Set headers' : '',
-    mainSteps.includes('Log Payload') ? 'Log inbound payload' : '',
-    includesAny(context, ['Map to FarEye']) ? 'Map to FarEye subprocess' : '',
-    includesAny(context, ['JSON to XML Converter']) ? 'JSON to XML' : '',
-    includesAny(context, ['MM_ECC_to_FarEye']) ? 'MM_ECC_to_FarEye mapping' : '',
-    includesAny(context, ['XML to JSON Converter']) ? 'XML to JSON' : '',
-    includesAny(context, ['Normalize Payload']) ? 'Normalize payload' : '',
-    includesAny(context, ['Persist Data']) ? 'Persist data' : '',
-    includesAny(context, ['Get Authorisation', 'Get Authorization']) ? 'Get FarEye auth token' : '',
-    includesAny(context, ['Set Log Attachment']) ? 'Set log attachment' : '',
-    mainSteps.includes('Log Payload') && includesAny(context, ['Post to FarEye']) ? 'Log outbound payload' : '',
-    includesAny(context, ['Post to FarEye']) ? 'Post to FarEye over HTTP' : '',
-    exceptionSteps.length ? 'Log error message on exception' : ''
+    systems.source || /amqp|sender/i.test(context) ? `Main process: ${source} AMQP message` : '',
+    mainSteps.includes('Set Standard Headers') ? 'Main process: Set Standard Headers' : '',
+    mainSteps.includes('Log Payload') ? 'Main process: Log inbound payload' : '',
+    includesAny(context, ['Map to FarEye']) ? 'Main process: Call Map to FarEye subprocess' : '',
+    includesAny(context, ['JSON to XML Converter']) ? 'Map to FarEye subprocess: JSON to XML Converter' : '',
+    includesAny(context, ['MM_ECC_to_FarEye']) ? 'Map to FarEye subprocess: MM_ECC_to_FarEye mapping' : '',
+    includesAny(context, ['Set Application ID']) ? 'Map to FarEye subprocess: Set Application ID' : '',
+    includesAny(context, ['XML to JSON Converter']) ? 'Map to FarEye subprocess: XML to JSON Converter' : '',
+    includesAny(context, ['Normalize Payload']) ? 'Map to FarEye subprocess: Normalize Payload' : '',
+    includesAny(context, ['Persist Data']) ? 'Map to FarEye subprocess: Persist Data' : '',
+    includesAny(context, ['Get Authorisation', 'Get Authorization']) ? 'Main process: Call Get Authorisation subprocess' : '',
+    includesAny(context, ['Set Client ID + Secret', 'Set Client ID Secret']) ? 'Auth subprocess: Set Client ID + Secret' : '',
+    includesAny(context, ['Set Auth Base64']) ? 'Auth subprocess: Set Auth Base64' : '',
+    includesAny(context, ['Get Access Token']) ? 'Auth subprocess: Get Access Token' : '',
+    includesAny(context, ['Set Auth']) ? 'Auth subprocess: Set Auth' : '',
+    includesAny(context, ['Set Log Attachment']) ? 'Main process: Set Log Attachment' : '',
+    mainSteps.includes('Log Payload') && includesAny(context, ['Post to FarEye']) ? 'Main process: Log outbound payload' : '',
+    includesAny(context, ['Post to FarEye']) ? `Main process: Post to ${target} via HTTP` : '',
+    exceptionSteps.length ? 'Exception subprocess: Log Error Message' : ''
   ]);
   const hasConcreteEvidence = Boolean(
     iflowName ||
@@ -1592,6 +1597,16 @@ function cleanFlowLabel(value, fallback) {
     || fallback;
 }
 
+function parseFlowStep(value) {
+  const text = safeLine(value);
+  const match = text.match(/^([^:]{3,42}):\s*(.+)$/);
+  if (!match) return { group: 'Process', label: text };
+  return {
+    group: cleanFlowLabel(match[1], 'Process'),
+    label: cleanFlowLabel(match[2], 'Process step')
+  };
+}
+
 function wrapSvgText(value, maxLength = 22) {
   const words = cleanFlowLabel(value, 'Process step')
     .split(' ')
@@ -1624,9 +1639,24 @@ function buildMermaidFlowDiagram(steps) {
   const usableSteps = steps.filter(Boolean);
   if (!usableSteps.length) return '';
 
-  const nodes = usableSteps.map((step, index) => {
+  const parsedSteps = usableSteps.map(parseFlowStep);
+  const hasGroups = parsedSteps.some((step) => step.group !== 'Process');
+  if (hasGroups) {
+    const groups = uniqueItems(parsedSteps.map((step) => step.group));
+    const subgraphs = groups.flatMap((group, groupIndex) => {
+      const groupNodes = parsedSteps
+        .map((step, index) => ({ ...step, nodeId: `S${index + 1}` }))
+        .filter((step) => step.group === group)
+        .map((step) => `    ${step.nodeId}["${cleanFlowLabel(step.label, step.nodeId)}"]`);
+      return [`  subgraph G${groupIndex}["${cleanFlowLabel(group, `Group ${groupIndex + 1}`)}"]`, ...groupNodes, '  end'];
+    });
+    const links = usableSteps.slice(1).map((_, index) => `  S${index + 1} --> S${index + 2}`);
+    return ['```mermaid', 'flowchart TD', ...subgraphs, ...links, '```'].join('\n');
+  }
+
+  const nodes = parsedSteps.map((step, index) => {
     const nodeId = `S${index + 1}`;
-    return `  ${nodeId}["${cleanFlowLabel(step, `Step ${index + 1}`)}"]`;
+    return `  ${nodeId}["${cleanFlowLabel(step.label, `Step ${index + 1}`)}"]`;
   });
   const links = usableSteps.slice(1).map((_, index) => `  S${index + 1} --> S${index + 2}`);
 
@@ -1637,9 +1667,10 @@ function buildFlowDiagramSvg(steps) {
   const usableSteps = steps.filter(Boolean).slice(0, 16);
   if (!usableSteps.length) return '';
 
+  const parsedSteps = usableSteps.map(parseFlowStep);
   const columnCount = Math.min(4, usableSteps.length);
   const nodeWidth = 196;
-  const nodeHeight = 68;
+  const nodeHeight = 82;
   const gapX = 36;
   const gapY = 42;
   const marginX = 28;
@@ -1674,20 +1705,24 @@ function buildFlowDiagramSvg(steps) {
     return `<path d="M ${from.x + nodeWidth / 2} ${from.y + nodeHeight} V ${midY} H ${to.x + nodeWidth / 2} V ${to.y - 12}" fill="none" stroke="#167a5b" stroke-width="4" marker-end="url(#arrow)" />`;
   }).join('\n');
 
-  const nodes = usableSteps.map((step, index) => {
+  const nodes = parsedSteps.map((step, index) => {
     const { x, y } = nodePosition(index);
     const isStart = index === 0;
     const isEnd = index === usableSteps.length - 1;
-    const fill = isStart ? '#101820' : isEnd ? '#167a5b' : '#f3fbf7';
-    const stroke = isStart ? '#101820' : '#167a5b';
+    const isException = /exception/i.test(step.group);
+    const isSubprocess = /subprocess/i.test(step.group);
+    const fill = isStart ? '#101820' : isEnd ? '#167a5b' : isException ? '#fff8e8' : isSubprocess ? '#ecf7f2' : '#f3fbf7';
+    const stroke = isStart ? '#101820' : isException ? '#9a392f' : '#167a5b';
     const textColor = isStart || isEnd ? '#ffffff' : '#101820';
-    const lines = wrapSvgText(step);
-    const textStartY = y + 28 - (lines.length - 1) * 7;
+    const groupColor = isStart || isEnd ? '#7fe0c5' : isException ? '#9a392f' : '#167a5b';
+    const lines = wrapSvgText(step.label, 20);
+    const textStartY = y + 43 - (lines.length - 1) * 7;
 
     return [
       `<rect x="${x}" y="${y}" width="${nodeWidth}" height="${nodeHeight}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`,
-      `<circle cx="${x + 22}" cy="${y + 22}" r="12" fill="${isStart || isEnd ? '#ffffff' : '#167a5b'}" opacity="${isStart || isEnd ? '0.95' : '1'}" />`,
-      `<text x="${x + 22}" y="${y + 26}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="800" fill="${isStart || isEnd ? '#101820' : '#ffffff'}">${index + 1}</text>`,
+      `<text x="${x + 14}" y="${y + 18}" font-family="Arial, sans-serif" font-size="9" font-weight="900" fill="${groupColor}">${escapeHtml(step.group.toUpperCase())}</text>`,
+      `<circle cx="${x + 22}" cy="${y + 38}" r="12" fill="${isStart || isEnd ? '#ffffff' : stroke}" opacity="${isStart || isEnd ? '0.95' : '1'}" />`,
+      `<text x="${x + 22}" y="${y + 42}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="800" fill="${isStart || isEnd ? '#101820' : '#ffffff'}">${index + 1}</text>`,
       ...lines.map((line, lineIndex) => `<text x="${x + 42}" y="${textStartY + lineIndex * 16}" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="${textColor}">${escapeHtml(line)}</text>`)
     ].join('\n');
   }).join('\n');
