@@ -346,7 +346,7 @@ const initialForm = {
   format: 'technical',
   areaId: 'sap-integration',
   overview:
-    'Documents the delivered change using screenshots, implementation notes, and code snippets so support and project teams can understand the solution quickly.',
+    'This technical specification is created to define the purpose, design, configuration, testing, deployment, and support approach for the delivered customer account update interface. It provides developers, testers, approvers, and support teams with a shared reference for how the solution works and how it should be validated and handed over.',
   businessProcess:
     'A source application sends customer account updates to SAP. The solution validates the payload, maps the relevant fields, updates the SAP target object, and records processing status for support traceability.',
   codeSnippet:
@@ -499,6 +499,10 @@ function slugify(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+}
+
+function buildTechSpecFilename(title) {
+  return `TechSpec_${slugify(title)}.docx`;
 }
 
 function detectCodeSignals(code, area) {
@@ -1130,7 +1134,7 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
     sectionNumber += 1;
   };
 
-  addSection('Purpose', [docParagraph(form.overview, { fallback: 'Describe why this documentation exists and what work was completed.' })]);
+  addSection('Purpose', [docParagraph(form.overview, { fallback: 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.' })]);
   addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
   addSection('Process Flow', docNumbered(buildProcessFlowSteps(form, area, screenshots)), { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
@@ -1264,7 +1268,7 @@ function buildDocumentation(form, area, screenshots) {
   const monitoringSupport = bulletList(buildMonitoringSupportPlan(area, form, screenshots));
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
   const sections = [
-    ['Purpose', safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'],
+    ['Purpose', safeLine(form.overview) || 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.'],
     ['Generated Implementation Summary', implementationSummary],
     ['Process Flow', processFlow],
     ['Business Process', safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'],
@@ -1714,7 +1718,7 @@ function App() {
   }
 
   async function exportWord() {
-    const filename = `${slugify(form.title)}.docx`;
+    const filename = buildTechSpecFilename(form.title);
     const fairLogoBytes = await loadFairLogoBytes();
     const wordDocument = buildDocxDocument(form, selectedArea, screenshots, fairLogoBytes);
     const wordBlob = await Packer.toBlob(wordDocument);

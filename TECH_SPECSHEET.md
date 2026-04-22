@@ -40,7 +40,7 @@ Users can provide:
 - Systems and landscape
 - Solution area
 - Document format type
-- Purpose
+- Purpose of the generated technical specification
 - Business process
 - Configuration notes
 - Testing notes
@@ -59,6 +59,8 @@ Generated documents include:
 - Optional customer logo
 
 The app exports real `.docx` files with embedded logo and screenshot images, improving compatibility with Microsoft Word and Google Docs.
+
+Downloaded Word files use the `TechSpec_<document-title>.docx` naming pattern so exported specifications are easier to identify in shared folders, Confluence attachments, and review packs.
 
 ### Template Handling
 

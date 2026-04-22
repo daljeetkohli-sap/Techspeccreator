@@ -22,7 +22,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Copies a Confluence-friendly rich HTML version for pasting into a Confluence page while keeping the Word export available as an attachment/reference.
-- Downloads a real `.docx` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
+- Downloads a real `.docx` file using the `TechSpec_<document-title>.docx` naming pattern; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.
 
 ## Developer Handoff
