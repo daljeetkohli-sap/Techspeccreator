@@ -243,6 +243,24 @@ Planned improvements:
 - Add a richer document preview that looks closer to the final Word output.
 - Add optional sample data/examples for each solution area.
 - Add export quality checks before download.
+- Make the document format dropdown produce clearly different outputs for Technical Spec, Functional Spec, Support Runbook, and Handover Pack instead of only changing the document label.
+
+### Future Document Format Expansion
+
+The current app exposes these document formats in the UI:
+
+- Technical Spec
+- Functional Spec
+- Support Runbook
+- Handover Pack
+
+Technical Spec is the primary beta-ready output today. The remaining formats should become dedicated document generators in future releases:
+
+- Functional Spec: focus on business process, actors, user stories, functional requirements, acceptance criteria, business rules, dependencies, reporting needs, exceptions, and sign-off.
+- Support Runbook: focus on operational ownership, monitoring points, alert handling, common failures, retry/reprocess steps, access requirements, escalation paths, SLAs, and support contacts.
+- Handover Pack: focus on delivery summary, implemented scope, evidence index, deployment/transport details, open items, known risks, training notes, operational readiness, approval status, and customer/developer handover checklist.
+
+Each format should still reuse the same evidence capture model: solution area, code snippets, screenshots/OCR, process notes, template guidance, testing notes, risks, FAIR branding, optional customer logo, Word export, and Confluence copy.
 
 ### Phase 2: Smarter Evidence Understanding
 
