@@ -9,7 +9,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Generates core technical-spec headers such as purpose, implementation summary, process flow with a compact green-and-black technical flowchart diagram, business process, template alignment, checklist, technical design, configuration, testing, deployment, monitoring/support, risks, and approval handover.
 - Adds code and screenshot sections only when those artifacts are supplied.
 - Generates area-specific checklist details, testing strategy, risk controls, support notes, and technical design guidance for every supported solution area.
-- Captures document title, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
+- Captures document title, document version, revision summary, owner, landscape, process notes, configuration notes, testing notes, risks, and code snippets.
 - Adds the official FAIR CONSULTING GROUP logo to every generated document and supports an optional customer logo upload for the Word export header.
 - Asks whether to **Create automatically** or **Use my template** before generating the spec.
 - In **Create automatically** mode, generates a tech-spec structure from the selected SAP area, code snippet, screenshots, and notes.
@@ -22,7 +22,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Copies a Confluence-friendly rich HTML version for pasting into a Confluence page while keeping the Word export available as an attachment/reference.
-- Downloads a real `.docx` file using the `TechSpec_<document-title>.docx` naming pattern; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
+- Downloads a real `.docx` file using the `TechSpec_<document-title>_v<version>.docx` naming pattern; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.
 
 ## Developer Handoff

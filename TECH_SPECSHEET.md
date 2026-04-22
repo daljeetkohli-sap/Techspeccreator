@@ -40,6 +40,8 @@ Users can provide:
 - Systems and landscape
 - Solution area
 - Document format type
+- Document version
+- Revision summary
 - Purpose of the generated technical specification
 - Business process
 - Configuration notes
@@ -60,7 +62,7 @@ Generated documents include:
 
 The app exports real `.docx` files with embedded logo and screenshot images, improving compatibility with Microsoft Word and Google Docs.
 
-Downloaded Word files use the `TechSpec_<document-title>.docx` naming pattern so exported specifications are easier to identify in shared folders, Confluence attachments, and review packs.
+Downloaded Word files use the `TechSpec_<document-title>_v<version>.docx` naming pattern so exported specifications are easier to identify in shared folders, Confluence attachments, and review packs.
 
 ### Template Handling
 
@@ -77,6 +79,7 @@ The app can generate sections such as:
 
 - Purpose
 - Generated Implementation Summary
+- Revision History
 - Process Flow
 - Business Process
 - Template Alignment
@@ -297,7 +300,7 @@ Potential enhancements:
 - Attach the generated Word document automatically to the matching Confluence page and update the same page on later exports instead of creating duplicates.
 - Draft, review, approved, and archived statuses.
 - Reviewer comments and change history.
-- Document versioning.
+- Document versioning with revision history, version comparison, and prior-version restore.
 - Approval workflow.
 - Reviewer checklist with section-level status such as Missing Detail, Needs Review, Approved, and Ready For Handover.
 - Beta feedback summary that consolidates reviewer comments, missing evidence, and open actions into a handover-ready view.

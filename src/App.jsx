@@ -101,6 +101,7 @@ const fairLogoPath = '/fcg-logo.png';
 const requiredDocumentHeaders = [
   'Purpose',
   'Generated Implementation Summary',
+  'Revision History',
   'Process Flow',
   'Business Process',
   'Template Alignment',
@@ -343,6 +344,7 @@ const initialForm = {
   title: 'Customer Account Update Interface',
   owner: 'SAP Delivery Team',
   system: 'S/4HANA, SAP BTP, Azure',
+  documentVersion: '0.1 Draft',
   format: 'technical',
   areaId: 'sap-integration',
   overview:
@@ -357,6 +359,8 @@ const initialForm = {
     'Run happy path, missing mandatory field, duplicate message, and authorization failure scenarios. Attach run history, payload samples, and SAP application logs as evidence.',
   risks:
     'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.',
+  revisionSummary:
+    'Initial draft generated for developer and beta review.',
   templateMode: 'auto',
   templateName: '',
   templateType: '',
@@ -371,9 +375,10 @@ const oldSampleOverview =
 
 function migrateSavedForm(form) {
   if (!form) return form;
+  const migrated = { ...initialForm, ...form };
   return {
-    ...form,
-    overview: safeLine(form.overview) === oldSampleOverview ? initialForm.overview : form.overview
+    ...migrated,
+    overview: safeLine(migrated.overview) === oldSampleOverview ? initialForm.overview : migrated.overview
   };
 }
 
@@ -514,8 +519,9 @@ function slugify(value) {
     .replace(/(^-|-$)/g, '');
 }
 
-function buildTechSpecFilename(title) {
-  return `TechSpec_${slugify(title)}.docx`;
+function buildTechSpecFilename(title, version) {
+  const versionPart = safeLine(version) ? `_v${slugify(version)}` : '';
+  return `TechSpec_${slugify(title)}${versionPart}.docx`;
 }
 
 function detectCodeSignals(code, area) {
@@ -1237,6 +1243,17 @@ function buildApprovalRows() {
   ];
 }
 
+function buildRevisionRows(form) {
+  return [
+    [
+      safeLine(form.documentVersion) || '0.1 Draft',
+      new Date().toLocaleDateString(),
+      safeLine(form.owner) || 'TBD',
+      safeLine(form.revisionSummary) || 'Generated technical specification draft for review.'
+    ]
+  ];
+}
+
 function docParagraph(text, options = {}) {
   return new Paragraph({
     spacing: { after: options.after ?? 140 },
@@ -1318,6 +1335,22 @@ function docInfoTable(rows) {
   });
 }
 
+function docRevisionTable(rows) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: rows.map((row, rowIndex) =>
+      new TableRow({
+        children: row.map((cell) =>
+          new TableCell({
+            shading: rowIndex === 0 ? { fill: 'E8F2F4' } : undefined,
+            children: [docParagraph(cell, { bold: rowIndex === 0, after: 40 })]
+          })
+        )
+      })
+    )
+  });
+}
+
 function buildDocxDocument(form, area, screenshots, fairLogoBytes, flowDiagramAsset) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const templateRows = getTemplateMode(form) === 'upload'
@@ -1378,6 +1411,7 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes, flowDiagramAs
     docInfoTable([
       ['Document type', selectedFormat.name],
       ['Solution area', area.name],
+      ['Document version', safeLine(form.documentVersion) || '0.1 Draft'],
       ['Owner', safeLine(form.owner) || 'TBD'],
       ['Systems', safeLine(form.system) || 'TBD'],
       ['Generated', new Date().toLocaleString()],
@@ -1425,6 +1459,10 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes, flowDiagramAs
 
   addSection('Purpose', [docParagraph(form.overview, { fallback: 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.' })]);
   addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
+  addSection('Revision History', [docRevisionTable([
+    ['Version', 'Date', 'Author/Owner', 'Change Summary'],
+    ...buildRevisionRows(form)
+  ])]);
   addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
@@ -1549,6 +1587,7 @@ function buildDocumentation(form, area, screenshots) {
     return `### ${section}\n${bulletList(insights)}`;
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
+  const revisionHistory = `| Version | Date | Author/Owner | Change Summary |\n| --- | --- | --- | --- |\n${buildRevisionRows(form).map((row) => `| ${row.map((cell) => safeLine(cell) || 'TBD').join(' | ')} |`).join('\n')}`;
   const processFlow = buildProcessFlowContent(form, area, screenshots);
   const unitTesting = bulletList(buildUnitTestingPlan(area, form));
   const integrationTesting = bulletList(buildIntegrationTestingPlan(area, form, screenshots));
@@ -1559,6 +1598,7 @@ function buildDocumentation(form, area, screenshots) {
   const sections = [
     ['Purpose', safeLine(form.overview) || 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.'],
     ['Generated Implementation Summary', implementationSummary],
+    ['Revision History', revisionHistory],
     ['Process Flow', processFlow],
     ['Business Process', safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'],
     ['Template Alignment', buildTemplateAlignmentContent(form, area)],
@@ -1591,7 +1631,7 @@ function buildDocumentation(form, area, screenshots) {
     .join('\n\n');
 
   return `${buildBrandingMarkdown(form)}\n\n# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
-    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
+    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
     `${body}\n`;
 }
 
@@ -1764,7 +1804,7 @@ function App() {
 
   const stats = useMemo(() => {
     const words = generatedDoc.split(/\s+/).filter(Boolean).length;
-    const completedFields = ['title', 'owner', 'system', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes']
+    const completedFields = ['title', 'owner', 'system', 'documentVersion', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes', 'revisionSummary']
       .filter((field) => safeLine(form[field])).length;
     return {
       words,
@@ -2028,7 +2068,7 @@ function App() {
   }
 
   async function exportWord() {
-    const filename = buildTechSpecFilename(form.title);
+    const filename = buildTechSpecFilename(form.title, form.documentVersion);
     const fairLogoBytes = await loadFairLogoBytes();
     const flowDiagramAsset = await createFlowDiagramAsset(buildTechnicalDiagramSteps(form, selectedArea, screenshots));
     const wordDocument = buildDocxDocument(form, selectedArea, screenshots, fairLogoBytes, flowDiagramAsset);
@@ -2112,7 +2152,7 @@ function App() {
       <section className="signal-strip">
         <div><strong>{stats.words}</strong><span>Words</span></div>
         <div><strong>{stats.screenshots}</strong><span>Screenshots</span></div>
-        <div><strong>{stats.completedFields}/7</strong><span>Inputs filled</span></div>
+        <div><strong>{stats.completedFields}/9</strong><span>Inputs filled</span></div>
         <div><strong>{stats.sections}</strong><span>Doc sections</span></div>
       </section>
 
@@ -2221,9 +2261,17 @@ function App() {
                     Owner/team
                     <input value={form.owner} onChange={(event) => updateForm('owner', event.target.value)} />
                   </label>
+                  <label>
+                    Document version
+                    <input value={form.documentVersion} onChange={(event) => updateForm('documentVersion', event.target.value)} />
+                  </label>
                   <label className="wide-field">
                     Systems and landscape
                     <input value={form.system} onChange={(event) => updateForm('system', event.target.value)} />
+                  </label>
+                  <label className="wide-field">
+                    Revision summary
+                    <input value={form.revisionSummary} onChange={(event) => updateForm('revisionSummary', event.target.value)} />
                   </label>
                 </div>
               </section>
