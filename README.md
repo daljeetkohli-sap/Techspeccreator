@@ -17,6 +17,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Reviews code snippets for SAP/Azure patterns and adds a generated code-understanding section.
 - Reviews screenshot evidence from its type, caption, visible text, and notes, then adds a generated technical interpretation section.
 - Generates a structured `.docx` Word file with the required generic headers, embedded FAIR/customer logos, dynamic solution-area technical sections, and area-specific validation guidance.
+- Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Downloads a real `.docx` file; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.

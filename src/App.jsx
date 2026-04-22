@@ -517,10 +517,6 @@ function detectCodeSignals(code, area) {
     signals.push(`Code was provided for ${area.name}; review object names, inputs, outputs, validations, dependencies, and error paths.`);
   }
 
-  if (!safeLine(text)) {
-    signals.push('No code snippet supplied yet; attach or paste the relevant ABAP, CDS, XML, JSON, JavaScript, Groovy, or configuration snippet.');
-  }
-
   return [...new Set(signals)];
 }
 
@@ -574,18 +570,10 @@ function inferCodeDetails(code, area) {
   if (/loop|filter|where|case|switch|if\s+/i.test(text)) {
     details.operations.push('Conditional or iterative business logic is present and should be described as processing rules.');
   }
-  if (!safeLine(text)) {
-    details.operations.push(`No code snippet has been supplied yet; ${area.name} implementation details must be completed from attached artifacts.`);
-  }
-
   return details;
 }
 
 function collectEvidenceSummary(screenshots) {
-  if (!screenshots.length) {
-    return ['No screenshot evidence has been attached yet.'];
-  }
-
   return screenshots.map((shot, index) => {
     const caption = safeLine(shot.caption) || shot.name;
     const visible = safeLine(shot.extractedText);
@@ -608,7 +596,7 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
       'Transport and deployment': ['Document transport request, package, dependencies, activation sequence, retrofit needs, and post-import validation.']
     },
     'sap-integration': {
-      'Integration scenario': [...codeDetails.integrations, ...codeDetails.operations, `Evidence reviewed: ${evidence[0]}`],
+      'Integration scenario': [...codeDetails.integrations, ...codeDetails.operations, ...(evidence.length ? [`Evidence reviewed: ${evidence[0]}`] : [])],
       'Sender and receiver adapters': ['Document sender and receiver adapters, protocol, endpoint, authentication, timeout, and quality-of-service settings.'],
       'Message mapping and transformation': [...codeDetails.operations, 'Map source fields to SAP target fields and call out mandatory transformations, value mappings, Groovy scripts, and content modifiers.'],
       'Security material': [...codeDetails.security, 'Document credential alias, destination, certificate, OAuth client, key pair, or key vault dependency.'],
@@ -705,7 +693,7 @@ function buildSectionInsights(area, section, form, screenshots) {
     ...codeDetails.persistence,
     ...codeDetails.security,
     ...codeDetails.errors,
-    `Evidence basis: ${evidence[0]}`
+    ...(evidence.length ? [`Evidence basis: ${evidence[0]}`] : [])
   ];
 
   const merged = [...specific, ...generic]
@@ -721,11 +709,12 @@ function buildImplementationSummary(form, area, screenshots) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   const evidence = collectEvidenceSummary(screenshots);
   const summary = [
-    `The specification is generated for ${area.name} using the supplied business context, implementation snippet, screenshot evidence, and template guidance.`,
-    codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : 'No concrete object names were confidently inferred from the snippet; confirm object names during review.',
+    `This specification documents ${safeLine(form.title) || 'the delivered change'} for ${area.name}.`,
+    safeLine(form.businessProcess) ? `Business process covered: ${safeLine(form.businessProcess)}` : '',
+    codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : '',
     signals[0],
-    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : evidence[0],
-    safeLine(form.templateOutline) ? 'The uploaded template guidance has been included as a document alignment input.' : 'No detailed template guidance has been supplied yet.'
+    evidence.length ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : '',
+    safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
   ];
 
   return summary.filter(Boolean);
@@ -735,8 +724,30 @@ function hasAny(value, patterns) {
   return patterns.some((pattern) => pattern.test(value));
 }
 
+function extractBusinessProcessSteps(value) {
+  const text = safeLine(value);
+  if (!text) return [];
+  const normalized = text
+    .replace(/\s*(?:->|→)\s*/g, '. ')
+    .replace(/\s+(?:then|after that|afterwards)\s+/gi, '. ')
+    .replace(/\s*;\s*/g, '. ');
+  const parts = normalized
+    .split(/(?:\r?\n|(?<=[.!?])\s+)/)
+    .map((part) => safeLine(part).replace(/[.!?]+$/g, ''))
+    .filter((part) => part.length > 8);
+  return (parts.length ? parts : [text]).slice(0, 8);
+}
+
 function buildProcessFlowSteps(form, area, screenshots) {
+  const describedSteps = extractBusinessProcessSteps(form.businessProcess);
+  if (describedSteps.length) {
+    return describedSteps;
+  }
+
   const code = form.codeSnippet || '';
+  const hasEvidence = safeLine(code) || screenshots.length || safeLine(form.overview);
+  if (!hasEvidence) return [];
+
   const context = [
     code,
     form.businessProcess,
@@ -747,9 +758,7 @@ function buildProcessFlowSteps(form, area, screenshots) {
   const steps = [];
 
   if (hasAny(context, [/trigger|schedule|event|button|tile|launchpad|source|sender|workflow|http|api|request|payload/])) {
-    steps.push('Trigger/Input: The process starts from a user action, source system event, scheduled workflow, API request, or incoming payload. Confirm exact trigger and entry point from the attached evidence.');
-  } else {
-    steps.push('Trigger/Input: Confirm the initiating user action, source system, scheduled job, or inbound message that starts the process.');
+    steps.push('Trigger/Input: The process starts from the user action, source system event, scheduled workflow, API request, or incoming payload described in the supplied evidence.');
   }
 
   if (codeDetails.operations.some((item) => /payload|parsing|serialization|mapping|transformation/i.test(item)) || hasAny(context, [/deserialize|serialize|mapping|transform|payload|json|xml|content modifier|message mapping/])) {
@@ -778,8 +787,6 @@ function buildProcessFlowSteps(form, area, screenshots) {
 
   if (hasAny(context, [/success|completed|processed|posted|green|200|ok|created|updated/])) {
     steps.push('Success Outcome: Evidence indicates a successful processing or posting state; document resulting status, confirmation message, and output object.');
-  } else {
-    steps.push('Success Outcome: Define the expected final state, status message, created/updated object, and confirmation shown to users or support teams.');
   }
 
   if (codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/])) {
@@ -788,8 +795,6 @@ function buildProcessFlowSteps(form, area, screenshots) {
 
   if (hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/])) {
     steps.push('Monitor/Support: Runtime evidence should be tracked using message ID, run history, trace, application log, or support queue details.');
-  } else {
-    steps.push('Monitor/Support: Add the operational monitoring location and support steps for checking success/failure after execution.');
   }
 
   return steps.filter((step, index, list) => list.indexOf(step) === index);
@@ -841,6 +846,25 @@ function getTemplateGuidance(form, area) {
   return buildAutomaticTemplateOutline(form, area);
 }
 
+function buildTemplateAlignmentItems(form, area) {
+  if (getTemplateMode(form) === 'upload') {
+    return [
+      'Template source: Customer-provided template.',
+      safeLine(form.templateName) ? `Template file: ${safeLine(form.templateName)}.` : '',
+      safeLine(form.templateOutline) ? `Applied template guidance: ${safeLine(form.templateOutline)}` : ''
+    ].filter(Boolean);
+  }
+
+  return [
+    `Template source: FAIR standard technical specification structure for ${area.name}.`,
+    'The document has been organized for developer handover, support readiness, and beta-test review.'
+  ];
+}
+
+function buildTemplateAlignmentContent(form, area) {
+  return bulletList(buildTemplateAlignmentItems(form, area));
+}
+
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(form.codeSnippet, area);
   return bulletList(signals);
@@ -861,7 +885,7 @@ function buildAreaTestingStrategy(area, form, screenshots) {
   return [
     ...base,
     safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : '',
-    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Evidence to attach: ${evidence[0]}` : ''
+    evidence.length ? `Evidence to attach: ${evidence[0]}` : ''
   ].filter(Boolean);
 }
 
@@ -876,47 +900,67 @@ function getValidationProfile(area) {
 
 function buildUnitTestingPlan(area, form) {
   const profile = getValidationProfile(area);
+  const codeDetails = inferCodeDetails(form.codeSnippet, area);
   return [
-    ...profile.unit,
-    safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : 'Add project-specific unit-test cases, test data, and expected assertions.'
+    safeLine(form.testingNotes) ? `Project testing scope: ${safeLine(form.testingNotes)}` : '',
+    codeDetails.validations.length ? 'Unit tests should cover the validation and exception branches identified in the supplied code.' : '',
+    codeDetails.operations.length ? 'Unit tests should cover the processing rules identified in the supplied code.' : '',
+    !safeLine(form.testingNotes) && safeLine(form.codeSnippet) ? profile.unit[0] : ''
   ].filter(Boolean);
 }
 
-function buildIntegrationTestingPlan(area, screenshots) {
+function buildIntegrationTestingPlan(area, form, screenshots) {
   const profile = getValidationProfile(area);
   const evidence = collectEvidenceSummary(screenshots);
   return [
-    ...profile.integration,
-    evidence[0] !== 'No screenshot evidence has been attached yet.' ? `Evidence to attach: ${evidence[0]}` : 'Attach evidence for the full process path, including input, processing, output, and monitoring result.'
+    safeLine(form.businessProcess) ? `End-to-end test path: ${safeLine(form.businessProcess)}` : '',
+    evidence.length ? `Evidence to attach: ${evidence[0]}` : '',
+    !safeLine(form.businessProcess) && !evidence.length && safeLine(form.testingNotes) ? profile.integration[0] : ''
   ].filter(Boolean);
 }
 
-function buildRegressionTestingPlan(area) {
+function buildRegressionTestingPlan(area, form) {
   return [
-    ...getValidationProfile(area).regression,
-    'Confirm test sign-off from the business/process owner and technical owner before release.'
+    safeLine(form.testingNotes) ? `Regression coverage should include the scenarios called out in testing notes: ${safeLine(form.testingNotes)}` : '',
+    safeLine(form.businessProcess) ? `Regression should verify adjacent user journeys and integrations touched by: ${safeLine(form.businessProcess)}` : '',
+    safeLine(form.risks) ? `Include risk-based regression for: ${safeLine(form.risks)}` : '',
+    !safeLine(form.testingNotes) && !safeLine(form.businessProcess) ? getValidationProfile(area).regression[0] : ''
+  ].filter(Boolean);
+}
+
+function buildDeploymentPlan(area, form) {
+  return [
+    safeLine(form.configNotes) ? `Deployment/configuration notes: ${safeLine(form.configNotes)}` : '',
+    safeLine(form.system) ? `Target landscape: ${safeLine(form.system)}.` : '',
+    'Record release owner, version/transport, deployment date, rollback approach, and post-deployment smoke-test result.'
+  ].filter(Boolean);
+}
+
+function buildMonitoringSupportPlan(area, form, screenshots) {
+  const evidence = collectEvidenceSummary(screenshots);
+  return [
+    safeLine(form.risks) ? `Support watch items: ${safeLine(form.risks)}` : '',
+    evidence.length ? `Support evidence/reference: ${evidence[0]}` : '',
+    safeLine(form.businessProcess) ? `Support should validate the documented process outcome: ${safeLine(form.businessProcess)}` : '',
+    !safeLine(form.risks) && !evidence.length ? buildAreaSupportNotes(area)[0] : ''
+  ].filter(Boolean);
+}
+
+function buildApprovalHandoverPlan(area) {
+  return [
+    `Technical and business approvers should review the ${area.name} design, test evidence, deployment notes, and support procedure before release.`,
+    'Handover should include the final specification, test evidence, release notes, known limitations, and support owner.'
   ];
 }
 
-function buildDeploymentPlan(area) {
+function buildApprovalRows() {
   return [
-    ...getValidationProfile(area).deployment,
-    'Capture environment, version, dependency, rollback, and post-deployment validation details for developer handover.'
-  ];
-}
-
-function buildMonitoringSupportPlan(area) {
-  return [
-    ...buildAreaSupportNotes(area),
-    'Define monitoring owner, frequency, alert threshold, first response action, escalation path, and recovery or reprocess steps.'
-  ];
-}
-
-function buildApprovalHandoverPlan(area, form) {
-  return [
-    `Confirm ${area.name} technical owner review for the generated design, test evidence, deployment notes, and support procedure.`,
-    `Confirm business/process owner acceptance for ${safeLine(form.businessProcess) || 'the documented business process'}.`,
-    'Record approver names, approval date, release decision, known limitations, and handover recipients.'
+    ['Business approver', ''],
+    ['Technical approver', ''],
+    ['Approval date', ''],
+    ['Release/sign-off decision', 'Approved / Approved with conditions / Rejected'],
+    ['Handover owner', ''],
+    ['Handover date', '']
   ];
 }
 
@@ -972,7 +1016,7 @@ function docCodeBlock(code) {
       left: { style: BorderStyle.SINGLE, size: 4, color: 'C8D4DA' },
       right: { style: BorderStyle.SINGLE, size: 4, color: 'C8D4DA' }
     },
-    children: String(code || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')
+    children: String(code || '')
       .split('\n')
       .flatMap((line, index) => [
         new TextRun({ text: line || ' ', font: 'Consolas', size: 18 }),
@@ -993,7 +1037,7 @@ function docInfoTable(rows) {
             children: [docParagraph(label, { bold: true, after: 40 })]
           }),
           new TableCell({
-            children: [docParagraph(value || 'TBD', { after: 40 })]
+            children: [docParagraph(value ?? '', { after: 40 })]
           })
         ]
       })
@@ -1003,19 +1047,12 @@ function docInfoTable(rows) {
 
 function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
-  const templateMode = getTemplateMode(form);
-  const templateGuidance = getTemplateGuidance(form, area);
-  const templateRows = templateMode === 'upload'
+  const templateRows = getTemplateMode(form) === 'upload'
     ? [
-      ['Template decision', 'Use my template'],
-      ['Template file', safeLine(form.templateName) || 'Template not uploaded yet'],
-      ['Template type', safeLine(form.templateType) || 'PDF/DOC/DOCX'],
-      ['Template guidance', templateGuidance]
+      ['Template source', 'Customer-provided template'],
+      ...(safeLine(form.templateName) ? [['Template file', safeLine(form.templateName)]] : [])
     ]
-    : [
-      ['Template decision', 'Create automatically'],
-      ['Generated template structure', templateGuidance]
-    ];
+    : [['Template source', 'FAIR standard technical specification']];
   const logoChildren = [
     new Paragraph({
       children: [
@@ -1072,65 +1109,62 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
       ['Systems', safeLine(form.system) || 'TBD'],
       ['Generated', new Date().toLocaleString()],
       ...templateRows
-    ]),
-    docHeading('1. Purpose'),
-    docParagraph(form.overview, { fallback: 'Describe why this documentation exists and what work was completed.' }),
-    docHeading('2. Generated Implementation Summary'),
-    ...docBullets(buildImplementationSummary(form, area, screenshots)),
-    docHeading('3. Process Flow'),
-    ...docNumbered(buildProcessFlowSteps(form, area, screenshots)),
-    docHeading('4. Business Process'),
-    docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' }),
-    docHeading('5. Template Alignment'),
-    docParagraph(templateGuidance, { fallback: 'Standard generated technical specification structure used.' }),
-    docHeading('6. Solution Area Checklist'),
-    docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail])),
-    docHeading('7. Technical Design'),
-    ...area.sections.flatMap((section) => [
-      docHeading(section, HeadingLevel.HEADING_3),
-      ...docBullets(buildSectionInsights(area, section, form, screenshots))
-    ]),
-    docHeading('8. Configuration Notes'),
-    docParagraph(form.configNotes, { fallback: 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.' }),
-    docHeading('9. Code Understanding'),
-    ...docBullets(detectCodeSignals(form.codeSnippet, area)),
-    docHeading('10. Code Snippet'),
-    docCodeBlock(form.codeSnippet),
-    docHeading('11. Screenshot Evidence'),
-    ...(screenshots.length
-      ? screenshots.flatMap((shot, index) => [
-        docHeading(`Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}`, HeadingLevel.HEADING_3),
-        ...(shot.dataUrl ? [new Paragraph({ children: [new ImageRun({ type: imageTypeFromDataUrl(shot.dataUrl), data: dataUrlToBytes(shot.dataUrl), transformation: { width: 520, height: 292 } })] })] : []),
-        docInfoTable([
-          ['Type', shot.screenType],
-          ['File', `${shot.name} (${formatBytes(shot.size)})`],
-          ['Visible text', safeLine(shot.extractedText) || 'Not captured'],
-          ['Reviewer notes', safeLine(shot.note) || 'Not captured']
-        ])
-      ])
-      : [docParagraph('No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.')]),
-    docHeading('12. Screenshot Review And Technical Interpretation'),
-    ...(screenshots.length
-      ? screenshots.flatMap((shot, index) => [
-        docHeading(`Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}`, HeadingLevel.HEADING_3),
-        ...docBullets(getScreenshotObservations(shot, area))
-      ])
-      : [docParagraph('No screenshot review has been generated yet. Add screenshots and capture visible text/notes so the generated document can interpret each image.')]),
-    docHeading('13. Unit Testing'),
-    ...docBullets(buildUnitTestingPlan(area, form)),
-    docHeading('14. Integration Testing'),
-    ...docBullets(buildIntegrationTestingPlan(area, screenshots)),
-    docHeading('15. Regression Testing And UAT'),
-    ...docBullets(buildRegressionTestingPlan(area)),
-    docHeading('16. Deployment And Transport'),
-    ...docBullets(buildDeploymentPlan(area)),
-    docHeading('17. Monitoring And Support'),
-    ...docBullets(buildMonitoringSupportPlan(area)),
-    docHeading('18. Risks, Assumptions, And Open Items'),
-    ...docBullets(buildAreaRiskControls(area, form)),
-    docHeading('19. Approval And Handover'),
-    ...docBullets(buildApprovalHandoverPlan(area, form))
+    ])
   ];
+
+  let sectionNumber = 1;
+  const addSection = (title, body, options = {}) => {
+    const content = Array.isArray(body) ? body.filter(Boolean) : [body].filter(Boolean);
+    if (!content.length && options.skipWhenEmpty) return;
+    children.push(docHeading(`${sectionNumber}. ${title}`));
+    children.push(...content);
+    sectionNumber += 1;
+  };
+
+  addSection('Purpose', [docParagraph(form.overview, { fallback: 'Describe why this documentation exists and what work was completed.' })]);
+  addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
+  addSection('Process Flow', docNumbered(buildProcessFlowSteps(form, area, screenshots)), { skipWhenEmpty: true });
+  addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
+  addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
+  addSection('Solution Area Checklist', [docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail]))]);
+  addSection('Technical Design', area.sections.flatMap((section) => [
+    docHeading(section, HeadingLevel.HEADING_3),
+    ...docBullets(buildSectionInsights(area, section, form, screenshots))
+  ]));
+  addSection('Configuration Notes', [docParagraph(form.configNotes, { fallback: 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.' })]);
+
+  if (safeLine(form.codeSnippet)) {
+    addSection('Code Understanding', docBullets(detectCodeSignals(form.codeSnippet, area)));
+    addSection('Code Snippet', [docCodeBlock(form.codeSnippet)]);
+  }
+
+  if (screenshots.length) {
+    addSection('Screenshot Evidence', screenshots.flatMap((shot, index) => [
+      docHeading(`Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}`, HeadingLevel.HEADING_3),
+      ...(shot.dataUrl ? [new Paragraph({ children: [new ImageRun({ type: imageTypeFromDataUrl(shot.dataUrl), data: dataUrlToBytes(shot.dataUrl), transformation: { width: 520, height: 292 } })] })] : []),
+      docInfoTable([
+        ['Type', shot.screenType],
+        ['File', `${shot.name} (${formatBytes(shot.size)})`],
+        ['Visible text', safeLine(shot.extractedText)],
+        ['Reviewer notes', safeLine(shot.note)]
+      ])
+    ]));
+    addSection('Screenshot Review And Technical Interpretation', screenshots.flatMap((shot, index) => [
+      docHeading(`Figure ${index + 1}: ${safeLine(shot.caption) || shot.name}`, HeadingLevel.HEADING_3),
+      ...docBullets(getScreenshotObservations(shot, area))
+    ]));
+  }
+
+  addSection('Unit Testing', docBullets(buildUnitTestingPlan(area, form)), { skipWhenEmpty: true });
+  addSection('Integration Testing', docBullets(buildIntegrationTestingPlan(area, form, screenshots)), { skipWhenEmpty: true });
+  addSection('Regression Testing And UAT', docBullets(buildRegressionTestingPlan(area, form)), { skipWhenEmpty: true });
+  addSection('Deployment And Transport', docBullets(buildDeploymentPlan(area, form)), { skipWhenEmpty: true });
+  addSection('Monitoring And Support', docBullets(buildMonitoringSupportPlan(area, form, screenshots)), { skipWhenEmpty: true });
+  addSection('Risks, Assumptions, And Open Items', docBullets(buildAreaRiskControls(area, form)), { skipWhenEmpty: true });
+  addSection('Approval And Handover', [
+    ...docBullets(buildApprovalHandoverPlan(area)),
+    docInfoTable(buildApprovalRows())
+  ]);
 
   return new Document({
     numbering: {
@@ -1207,18 +1241,6 @@ function getScreenshotObservations(shot, area, contextOverride) {
 
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
-  const templateMode = getTemplateMode(form);
-  const templateGuidance = getTemplateGuidance(form, area);
-  const templateReference = templateMode === 'upload'
-    ? `- Template decision: Use my template\n- Template file: ${safeLine(form.templateName) || 'Template not uploaded yet'} (${safeLine(form.templateType) || 'PDF/DOC/DOCX'})\n- Template guidance used:\n${templateGuidance}`
-    : `- Template decision: Create automatically\n- Generated template structure:\n${templateGuidance}`;
-  const evidence = screenshots.length
-    ? screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')
-    : '- Add screenshots of the app screen, SAP transaction, BTP cockpit page, workflow run, or code review evidence.';
-  const screenshotReview = screenshots.length
-    ? screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')
-    : '- No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.';
-
   const areaPrompts = getChecklistRows(area).map((row) => `- ${row.item}: ${row.detail}`).join('\n');
   const sectionDetails = area.sections.map((section) => {
     const insights = buildSectionInsights(area, section, form, screenshots);
@@ -1227,34 +1249,48 @@ function buildDocumentation(form, area, screenshots) {
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
   const processFlow = buildProcessFlowText(form, area, screenshots);
   const unitTesting = bulletList(buildUnitTestingPlan(area, form));
-  const integrationTesting = bulletList(buildIntegrationTestingPlan(area, screenshots));
-  const regressionTesting = bulletList(buildRegressionTestingPlan(area));
-  const deploymentPlan = bulletList(buildDeploymentPlan(area));
-  const monitoringSupport = bulletList(buildMonitoringSupportPlan(area));
+  const integrationTesting = bulletList(buildIntegrationTestingPlan(area, form, screenshots));
+  const regressionTesting = bulletList(buildRegressionTestingPlan(area, form));
+  const deploymentPlan = bulletList(buildDeploymentPlan(area, form));
+  const monitoringSupport = bulletList(buildMonitoringSupportPlan(area, form, screenshots));
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
-  const approvalHandover = bulletList(buildApprovalHandoverPlan(area, form));
+  const sections = [
+    ['Purpose', safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'],
+    ['Generated Implementation Summary', implementationSummary],
+    ['Process Flow', processFlow],
+    ['Business Process', safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'],
+    ['Template Alignment', buildTemplateAlignmentContent(form, area)],
+    ['Solution Area Checklist', areaPrompts],
+    ['Technical Design', sectionDetails],
+    ['Configuration Notes', safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'],
+    ...(safeLine(form.codeSnippet)
+      ? [
+        ['Code Understanding', buildCodeUnderstanding(form, area)],
+        ['Code Snippet', `\`\`\`\n${form.codeSnippet}\n\`\`\``]
+      ]
+      : []),
+    ...(screenshots.length
+      ? [
+        ['Screenshot Evidence', screenshots.map((shot, index) => `- Figure ${index + 1}: ${safeLine(shot.caption) || shot.name} (${shot.screenType})${shot.note ? ` - ${safeLine(shot.note)}` : ''}`).join('\n')],
+        ['Screenshot Review And Technical Interpretation', screenshots.map((shot, index) => buildScreenshotUnderstanding(shot, area, index)).join('\n\n')]
+      ]
+      : []),
+    ['Unit Testing', unitTesting],
+    ['Integration Testing', integrationTesting],
+    ['Regression Testing And UAT', regressionTesting],
+    ['Deployment And Transport', deploymentPlan],
+    ['Monitoring And Support', monitoringSupport],
+    ['Risks, Assumptions, And Open Items', areaRisks],
+    ['Approval And Handover', `${bulletList(buildApprovalHandoverPlan(area))}\n\n| Field | Detail |\n| --- | --- |\n${buildApprovalRows().map(([field, value]) => `| ${field} | ${value} |`).join('\n')}`]
+  ].filter(([, content]) => safeLine(content));
+
+  const body = sections
+    .map(([title, content], index) => `## ${index + 1}. ${title}\n${content}`)
+    .join('\n\n');
 
   return `${buildBrandingMarkdown(form)}\n\n# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
     `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
-    `## 1. Purpose\n${safeLine(form.overview) || 'Describe why this documentation exists and what work was completed.'}\n\n` +
-    `## 2. Generated Implementation Summary\n${implementationSummary}\n\n` +
-    `## 3. Process Flow\n${processFlow}\n\n` +
-    `## 4. Business Process\n${safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'}\n\n` +
-    `## 5. Template Alignment\n${templateReference}\n\n` +
-    `## 6. Solution Area Checklist\n${areaPrompts}\n\n` +
-    `## 7. Technical Design\n${sectionDetails}\n\n` +
-    `## 8. Configuration Notes\n${safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}\n\n` +
-    `## 9. Code Understanding\n${buildCodeUnderstanding(form, area)}\n\n` +
-    `## 10. Code Snippet\n\`\`\`\n${form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.'}\n\`\`\`\n\n` +
-    `## 11. Screenshot Evidence\n${evidence}\n\n` +
-    `## 12. Screenshot Review And Technical Interpretation\n${screenshotReview}\n\n` +
-    `## 13. Unit Testing\n${unitTesting}\n\n` +
-    `## 14. Integration Testing\n${integrationTesting}\n\n` +
-    `## 15. Regression Testing And UAT\n${regressionTesting}\n\n` +
-    `## 16. Deployment And Transport\n${deploymentPlan}\n\n` +
-    `## 17. Monitoring And Support\n${monitoringSupport}\n\n` +
-    `## 18. Risks, Assumptions, And Open Items\n${areaRisks}\n\n` +
-    `## 19. Approval And Handover\n${approvalHandover}\n`;
+    `${body}\n`;
 }
 
 function buildWordDocument(form, area, screenshots, fairLogoSrc = fairLogoPath) {
@@ -1271,19 +1307,19 @@ function buildWordDocument(form, area, screenshots, fairLogoSrc = fairLogoPath) 
       <tr><th>Template type</th><td>${escapeHtml(form.templateType || 'Uploaded template')}</td></tr>
       <tr><th>Template guidance</th><td>${escapeHtml(templateGuidance)}</td></tr>
     `
-    : `<tr><th>Template decision</th><td>Create automatically</td></tr><tr><th>Generated template structure</th><td>${escapeHtml(templateGuidance)}</td></tr>`;
+    : `<tr><th>Template source</th><td>FAIR standard technical specification</td></tr>`;
   const areaPromptRows = getChecklistRows(area).map((row) => `<tr><td>${escapeHtml(row.item)}</td><td>${escapeHtml(row.detail)}</td></tr>`).join('');
   const technicalSections = area.sections.map((section) => `
     <h3>${escapeHtml(section)}</h3>
     ${htmlList(buildSectionInsights(area, section, form, screenshots))}
   `).join('');
   const unitTesting = buildUnitTestingPlan(area, form);
-  const integrationTesting = buildIntegrationTestingPlan(area, screenshots);
-  const regressionTesting = buildRegressionTestingPlan(area);
-  const deploymentPlan = buildDeploymentPlan(area);
-  const monitoringSupport = buildMonitoringSupportPlan(area);
+  const integrationTesting = buildIntegrationTestingPlan(area, form, screenshots);
+  const regressionTesting = buildRegressionTestingPlan(area, form);
+  const deploymentPlan = buildDeploymentPlan(area, form);
+  const monitoringSupport = buildMonitoringSupportPlan(area, form, screenshots);
   const areaRisks = buildAreaRiskControls(area, form);
-  const approvalHandover = buildApprovalHandoverPlan(area, form);
+  const approvalHandover = buildApprovalHandoverPlan(area);
   const screenshotEvidenceBlocks = screenshots.length
     ? screenshots.map((shot, index) => {
       return `
@@ -1299,13 +1335,13 @@ function buildWordDocument(form, area, screenshots, fairLogoSrc = fairLogoPath) 
         </div>
       `;
     }).join('')
-    : '<p>No screenshots attached yet. Add screenshots and capture visible text/notes so the generated document can describe what each image proves.</p>';
+    : '';
   const screenshotReviewBlocks = screenshots.length
     ? screenshots.map((shot, index) => `
       <h3>Figure ${index + 1}: ${escapeHtml(safeLine(shot.caption) || shot.name)}</h3>
       ${htmlList(getScreenshotObservations(shot, area))}
     `).join('')
-    : '<p>No screenshot review has been generated yet. Add screenshots and capture visible text/notes so the generated document can interpret each image.</p>';
+    : '';
   const customerLogoBlock = form.customerLogoDataUrl
     ? `
       <div class="customer-logo">
@@ -1398,7 +1434,7 @@ function buildWordDocument(form, area, screenshots, fairLogoSrc = fairLogoPath) 
     ${htmlList(codeSignals)}
 
     <h2>10. Code Snippet</h2>
-    <pre>${escapeHtml(form.codeSnippet || 'Paste ABAP, JavaScript, CDS, XML, JSON, Groovy, or configuration code here.')}</pre>
+    <pre>${escapeHtml(form.codeSnippet || '')}</pre>
 
     <h2>11. Screenshot Evidence</h2>
     ${screenshotEvidenceBlocks}
@@ -1766,7 +1802,7 @@ function App() {
           <div className="area-sections">
             <strong>Testing focus</strong>
             <ul>
-              {[...buildUnitTestingPlan(selectedArea, form), ...buildIntegrationTestingPlan(selectedArea, screenshots)].slice(0, 4).map((item) => (
+              {[...buildUnitTestingPlan(selectedArea, form), ...buildIntegrationTestingPlan(selectedArea, form, screenshots)].slice(0, 4).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
