@@ -43,6 +43,7 @@ npm run build
 - Confirm Approval And Handover includes concise approval/handover guidance plus sign-off fields rather than pasting the full Business Process text.
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Preview opens, status text appears, and document text is copied to the clipboard.
+- Use Copy for Confluence and paste into a Confluence page. Confirm headings, tables, bullet lists, numbered process flow, and code blocks remain readable. Attach the downloaded Word file to the same Confluence page for audit/reference.
 - Use Download Word and confirm the `.docx` file opens in Microsoft Word and Google Docs with embedded FAIR/customer logos, populated document sections, inferred implementation summary, technical design sections, process flow, template alignment, testing, deployment, monitoring/support, risks, and approval handover included. Confirm code and screenshot content appears only when those artifacts are supplied. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
@@ -55,6 +56,7 @@ npm run build
 - Screenshot images are embedded into the downloaded Word file when uploaded in the current browser session.
 - PDF/DOCX templates are referenced and guided by the Template Guidance field; the frontend does not deeply parse every proprietary template format.
 - Screenshot understanding uses screenshot type, caption, OCR-extracted visible text, pasted visible text, and reviewer notes. OCR accuracy depends on image clarity and does not replace full AI vision or manual review.
+- Copy for Confluence uses browser clipboard support. If rich clipboard access is blocked, the app falls back to plain generated text.
 - The app currently has no backend, authentication, or shared team storage.
 
 ## Developer Notes

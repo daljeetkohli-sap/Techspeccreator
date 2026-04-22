@@ -159,6 +159,17 @@ The `.docx` output is intended to work in:
 - Google Drive upload
 - Google Docs conversion
 
+### Confluence Publishing
+
+The app includes a Copy for Confluence action that converts the generated Markdown-style preview into clipboard HTML for pasting into a Confluence page. The copied content is optimized for headings, tables, bullet lists, numbered process steps, and code blocks.
+
+For beta use, the recommended publishing model is:
+
+- Paste the copied Confluence version into a project/spec page.
+- Attach the generated Word file to the same page for audit/reference.
+- Use Confluence comments for developer review and beta feedback.
+- Keep approvals and handover sign-off fields visible in the page.
+
 ## Current Architecture
 
 ### Frontend
@@ -187,6 +198,7 @@ The `.docx` output is intended to work in:
 - PDF/DOCX template files are not deeply parsed for layout.
 - Template guidance works best when users paste required headings or rules into the Template Guidance field.
 - Screenshot interpretation depends on screenshot type, OCR quality, corrected visible text, and reviewer notes.
+- Confluence export uses browser clipboard support and does not yet create or update Confluence pages through the Atlassian REST API.
 - No authentication, shared team workspace, approval workflow, or persistent document library yet.
 - No live SAP, Azure, or BTP system connectivity.
 - No automatic repository scanning yet.
@@ -254,6 +266,7 @@ Potential enhancements:
 
 - User login and roles.
 - Shared document workspace.
+- Direct Confluence page create/update using Atlassian space key, parent page, and page ID.
 - Draft, review, approved, and archived statuses.
 - Reviewer comments and change history.
 - Document versioning.

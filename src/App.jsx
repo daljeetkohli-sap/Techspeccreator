@@ -1302,6 +1302,136 @@ function buildDocumentation(form, area, screenshots) {
     `${body}\n`;
 }
 
+function formatInlineMarkdown(value) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+function tableMarkdownToHtml(lines) {
+  const rows = lines
+    .filter((line) => !/^\|\s*-+/.test(line))
+    .map((line) => line.split('|').slice(1, -1).map((cell) => formatInlineMarkdown(cell.trim())));
+
+  if (!rows.length) return '';
+
+  return `<table><tbody>${rows.map((row, index) => (
+    `<tr>${row.map((cell) => (index === 0 ? `<th>${cell}</th>` : `<td>${cell}</td>`)).join('')}</tr>`
+  )).join('')}</tbody></table>`;
+}
+
+function markdownToConfluenceHtml(markdown) {
+  const lines = String(markdown || '').split('\n');
+  const html = [];
+  let paragraph = [];
+  let listType = '';
+  let listItems = [];
+  let tableLines = [];
+  let codeLines = [];
+  let inCode = false;
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    html.push(`<p>${formatInlineMarkdown(paragraph.join(' '))}</p>`);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    html.push(`<${listType}>${listItems.map((item) => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${listType}>`);
+    listType = '';
+    listItems = [];
+  };
+
+  const flushTable = () => {
+    if (!tableLines.length) return;
+    html.push(tableMarkdownToHtml(tableLines));
+    tableLines = [];
+  };
+
+  const flushOpenBlocks = () => {
+    flushParagraph();
+    flushList();
+    flushTable();
+  };
+
+  lines.forEach((line) => {
+    if (line.trim().startsWith('```')) {
+      if (inCode) {
+        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        codeLines = [];
+        inCode = false;
+      } else {
+        flushOpenBlocks();
+        inCode = true;
+      }
+      return;
+    }
+
+    if (inCode) {
+      codeLines.push(line);
+      return;
+    }
+
+    if (/^\|.+\|$/.test(line.trim())) {
+      flushParagraph();
+      flushList();
+      tableLines.push(line.trim());
+      return;
+    }
+
+    flushTable();
+
+    if (!line.trim()) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      flushOpenBlocks();
+      const level = Math.min(heading[1].length, 4);
+      html.push(`<h${level}>${formatInlineMarkdown(heading[2].replace(/^\d+\.\s+/, ''))}</h${level}>`);
+      return;
+    }
+
+    const unordered = line.match(/^\s*-\s+(.+)$/);
+    if (unordered) {
+      flushParagraph();
+      if (listType && listType !== 'ul') flushList();
+      listType = 'ul';
+      listItems.push(unordered[1]);
+      return;
+    }
+
+    const ordered = line.match(/^\s*\d+\.\s+(.+)$/);
+    if (ordered) {
+      flushParagraph();
+      if (listType && listType !== 'ol') flushList();
+      listType = 'ol';
+      listItems.push(ordered[1]);
+      return;
+    }
+
+    const image = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (image) {
+      flushOpenBlocks();
+      html.push(`<p><em>Image reference: ${formatInlineMarkdown(image[1] || image[2])}</em></p>`);
+      return;
+    }
+
+    paragraph.push(line.trim());
+  });
+
+  if (inCode) {
+    html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+  }
+  flushOpenBlocks();
+
+  return `<div>${html.join('\n')}</div>`;
+}
+
 function App() {
   const savedWorkspace = loadSavedWorkspace();
   const [form, setForm] = useState(savedWorkspace?.form ?? initialForm);
@@ -1500,6 +1630,37 @@ function App() {
     } catch {
       setLastAction('Clipboard access was blocked. The generated specification is visible in Preview so you can select and copy it manually.');
       showToast('Clipboard blocked; use Preview');
+    }
+  }
+
+  async function copyConfluenceDocumentation() {
+    const textToCopy = generatedDoc || buildDocumentation(form, selectedArea, screenshots);
+    const htmlToCopy = markdownToConfluenceHtml(textToCopy);
+    setActiveTab('preview');
+
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([htmlToCopy], { type: 'text/html' }),
+            'text/plain': new Blob([textToCopy], { type: 'text/plain' })
+          })
+        ]);
+      } else {
+        await navigator.clipboard.writeText(textToCopy);
+      }
+
+      setLastAction('Copied a Confluence-friendly version to the clipboard. Paste it into a Confluence page, then attach the Word export for audit/reference if required.');
+      showToast('Confluence copy ready');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        setLastAction('Rich Confluence copy was blocked, so the plain generated text was copied instead. Paste into Confluence and adjust table formatting if needed.');
+        showToast('Plain text copied');
+      } catch {
+        setLastAction('Clipboard access was blocked. The generated specification is visible in Preview so you can select and copy it into Confluence manually.');
+        showToast('Clipboard blocked; use Preview');
+      }
     }
   }
 
@@ -1980,6 +2141,7 @@ function App() {
                 </div>
                 <div className="toolbar-actions">
                   <button type="button" onClick={copyDocumentation}>Copy</button>
+                  <button type="button" className="secondary-button" onClick={copyConfluenceDocumentation}>Copy for Confluence</button>
                   <button type="button" className="secondary-button" onClick={exportWord}>Download Word</button>
                   <button type="button" className="danger-button" onClick={resetWorkspace}>Reset</button>
                 </div>
