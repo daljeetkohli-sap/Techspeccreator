@@ -115,6 +115,26 @@ const brandLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="520" height
 </svg>`;
 const brandLogoDataUrl = svgToDataUrl(brandLogoSvg);
 
+const sampleDefaults = {
+  title: 'Customer Account Update Interface',
+  owner: 'SAP Delivery Team',
+  system: 'S/4HANA, SAP BTP, Azure',
+  overview:
+    'This technical specification is created to define the purpose, design, configuration, testing, deployment, and support approach for the delivered customer account update interface. It provides developers, testers, approvers, and support teams with a shared reference for how the solution works and how it should be validated and handed over.',
+  businessProcess:
+    'A source application sends customer account updates to SAP. The solution validates the payload, maps the relevant fields, updates the SAP target object, and records processing status for support traceability.',
+  codeSnippet:
+    "DATA(ls_customer) = VALUE zcustomer_update( ).\n\n/io/cl_json=>deserialize(\n  EXPORTING json = iv_payload\n  CHANGING  data = ls_customer\n).\n\nIF ls_customer-account_id IS INITIAL.\n  RAISE EXCEPTION TYPE zcx_integration_error\n    EXPORTING textid = zcx_integration_error=>missing_account.\nENDIF.",
+  configNotes:
+    'Maintain destination credentials in the target landscape. Validate role collections, communication arrangements, and transport dependencies before release.',
+  testingNotes:
+    'Run happy path, missing mandatory field, duplicate message, and authorization failure scenarios. Attach run history, payload samples, and SAP application logs as evidence.',
+  risks:
+    'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.',
+  revisionSummary:
+    'Initial draft generated for developer and beta review.'
+};
+
 
 const requiredDocumentHeaders = [
   'Purpose',
@@ -359,26 +379,21 @@ const areaValidationProfiles = {
 };
 
 const initialForm = {
-  title: 'Customer Account Update Interface',
-  owner: 'SAP Delivery Team',
-  system: 'S/4HANA, SAP BTP, Azure',
+  title: sampleDefaults.title,
+  owner: sampleDefaults.owner,
+  system: sampleDefaults.system,
   documentVersion: '0.1 Draft',
   format: 'technical',
   areaId: 'sap-integration',
-  overview:
-    'This technical specification is created to define the purpose, design, configuration, testing, deployment, and support approach for the delivered customer account update interface. It provides developers, testers, approvers, and support teams with a shared reference for how the solution works and how it should be validated and handed over.',
-  businessProcess:
-    'A source application sends customer account updates to SAP. The solution validates the payload, maps the relevant fields, updates the SAP target object, and records processing status for support traceability.',
-  codeSnippet:
-    "DATA(ls_customer) = VALUE zcustomer_update( ).\n\n/io/cl_json=>deserialize(\n  EXPORTING json = iv_payload\n  CHANGING  data = ls_customer\n).\n\nIF ls_customer-account_id IS INITIAL.\n  RAISE EXCEPTION TYPE zcx_integration_error\n    EXPORTING textid = zcx_integration_error=>missing_account.\nENDIF.",
-  configNotes:
-    'Maintain destination credentials in the target landscape. Validate role collections, communication arrangements, and transport dependencies before release.',
-  testingNotes:
-    'Run happy path, missing mandatory field, duplicate message, and authorization failure scenarios. Attach run history, payload samples, and SAP application logs as evidence.',
-  risks:
-    'Confirm production credential rotation process. Align retry handling with business tolerance for duplicate updates.',
-  revisionSummary:
-    'Initial draft generated for developer and beta review.',
+  overview: sampleDefaults.overview,
+  businessProcess: sampleDefaults.businessProcess,
+  codeSnippet: sampleDefaults.codeSnippet,
+  codeFileName: '',
+  codeFileType: '',
+  configNotes: sampleDefaults.configNotes,
+  testingNotes: sampleDefaults.testingNotes,
+  risks: sampleDefaults.risks,
+  revisionSummary: sampleDefaults.revisionSummary,
   templateMode: 'auto',
   templateName: '',
   templateType: '',
@@ -391,6 +406,14 @@ const initialForm = {
 
 const oldSampleOverview =
   'Documents the delivered change using screenshots, implementation notes, and code snippets so support and project teams can understand the solution quickly.';
+
+function isSampleValue(field, value) {
+  return safeLine(sampleDefaults[field]) && safeLine(value) === safeLine(sampleDefaults[field]);
+}
+
+function evidenceLine(form, field) {
+  return isSampleValue(field, form[field]) ? '' : safeLine(form[field]);
+}
 
 function migrateSavedForm(form) {
   if (!form) return form;
@@ -583,6 +606,14 @@ function slugify(value) {
     .replace(/(^-|-$)/g, '');
 }
 
+function humanizeArtifactName(value) {
+  return safeLine(value)
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function buildTechSpecFilename(title, version) {
   const versionPart = safeLine(version) ? `_v${slugify(version)}` : '';
   return `TechSpec_${slugify(title)}${versionPart}.docx`;
@@ -676,6 +707,70 @@ function collectEvidenceSummary(screenshots) {
     const note = safeLine(shot.note);
     return `Figure ${index + 1} (${shot.screenType}): ${caption}${visible ? `; visible text: ${visible}` : ''}${note ? `; note: ${note}` : ''}`;
   });
+}
+
+function getActiveCodeSnippet(form) {
+  return evidenceLine(form, 'codeSnippet');
+}
+
+function deriveDocumentTitle(form, area, screenshots) {
+  if (evidenceLine(form, 'title')) return evidenceLine(form, 'title');
+  if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
+  const codeDetails = inferCodeDetails(getActiveCodeSnippet(form), area);
+  if (codeDetails.objects.length) return humanizeArtifactName(codeDetails.objects[0]);
+  const firstScreenshot = screenshots[0];
+  if (firstScreenshot) return humanizeArtifactName(firstScreenshot.caption || firstScreenshot.name);
+  return `${area.name} Technical Specification`;
+}
+
+function deriveBusinessProcessText(form, area, screenshots) {
+  if (evidenceLine(form, 'businessProcess')) return evidenceLine(form, 'businessProcess');
+  const screenshotText = screenshots
+    .map((shot, index) => {
+      const parts = [
+        `Figure ${index + 1}`,
+        shot.screenType,
+        shot.caption || shot.name,
+        shot.extractedText,
+        shot.note
+      ].map(safeLine).filter(Boolean);
+      return parts.join(': ');
+    })
+    .filter(Boolean);
+  if (screenshotText.length) {
+    return `Process inferred from screenshot evidence: ${screenshotText.slice(0, 4).join(' -> ')}`;
+  }
+
+  const codeDetails = inferCodeDetails(getActiveCodeSnippet(form), area);
+  const codeFlow = [
+    form.codeFileName ? `Code artifact ${form.codeFileName}` : '',
+    ...codeDetails.objects.map((item) => `Object ${item}`),
+    ...codeDetails.operations,
+    ...codeDetails.validations,
+    ...codeDetails.integrations,
+    ...codeDetails.persistence,
+    ...codeDetails.errors
+  ].filter(Boolean);
+  if (codeFlow.length) return `Process inferred from code evidence: ${codeFlow.slice(0, 8).join(' -> ')}`;
+  return '';
+}
+
+function getEvidenceProfile(form, area, screenshots) {
+  const codeSnippet = getActiveCodeSnippet(form);
+  return {
+    title: deriveDocumentTitle(form, area, screenshots),
+    overview: evidenceLine(form, 'overview'),
+    businessProcess: deriveBusinessProcessText(form, area, screenshots),
+    configNotes: evidenceLine(form, 'configNotes'),
+    testingNotes: evidenceLine(form, 'testingNotes'),
+    risks: evidenceLine(form, 'risks'),
+    revisionSummary: evidenceLine(form, 'revisionSummary'),
+    system: evidenceLine(form, 'system'),
+    owner: evidenceLine(form, 'owner'),
+    codeSnippet,
+    codeFileName: safeLine(form.codeFileName),
+    sourceMode: screenshots.length ? 'screenshots' : (codeSnippet ? 'code' : 'manual')
+  };
 }
 
 function areaSpecificDetails(area, codeDetails, screenshots) {
@@ -778,11 +873,13 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
 }
 
 function buildSectionInsights(area, section, form, screenshots) {
-  const codeDetails = inferCodeDetails(form.codeSnippet, area);
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const codeDetails = inferCodeDetails(evidenceProfile.codeSnippet, area);
   const specific = areaSpecificDetails(area, codeDetails, screenshots)[section] || [];
   const evidence = collectEvidenceSummary(screenshots);
   const generic = [
-    `${section} is part of the ${area.name} delivery scope for "${safeLine(form.title) || 'this technical specification'}".`,
+    `${section} is part of the ${area.name} delivery scope for "${evidenceProfile.title}".`,
+    evidenceProfile.codeFileName ? `Code artifact reviewed: ${evidenceProfile.codeFileName}.` : '',
     ...codeDetails.operations,
     ...codeDetails.integrations,
     ...codeDetails.validations,
@@ -801,12 +898,15 @@ function buildSectionInsights(area, section, form, screenshots) {
 }
 
 function buildImplementationSummary(form, area, screenshots) {
-  const codeDetails = inferCodeDetails(form.codeSnippet, area);
-  const signals = detectCodeSignals(form.codeSnippet, area);
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const codeDetails = inferCodeDetails(evidenceProfile.codeSnippet, area);
+  const signals = detectCodeSignals(evidenceProfile.codeSnippet, area);
   const evidence = collectEvidenceSummary(screenshots);
   const summary = [
-    `This specification documents ${safeLine(form.title) || 'the delivered change'} for ${area.name}.`,
-    safeLine(form.businessProcess) ? `Business process covered: ${safeLine(form.businessProcess)}` : '',
+    `This specification documents ${evidenceProfile.title} for ${area.name}.`,
+    evidenceProfile.sourceMode === 'screenshots' ? 'Primary evidence source: uploaded screenshot(s); code sections are omitted unless code is supplied separately.' : '',
+    evidenceProfile.sourceMode === 'code' ? `Primary evidence source: code snippet${evidenceProfile.codeFileName ? ` from ${evidenceProfile.codeFileName}` : ''}; screenshot sections are not required.` : '',
+    evidenceProfile.businessProcess ? `Business/process flow evidence: ${evidenceProfile.businessProcess}` : '',
     codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : '',
     signals[0],
     evidence.length ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : '',
@@ -835,19 +935,20 @@ function extractBusinessProcessSteps(value) {
 }
 
 function buildProcessFlowSteps(form, area, screenshots) {
-  const describedSteps = extractBusinessProcessSteps(form.businessProcess);
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const describedSteps = extractBusinessProcessSteps(evidenceProfile.businessProcess);
   if (describedSteps.length) {
     return describedSteps;
   }
 
-  const code = form.codeSnippet || '';
-  const hasEvidence = safeLine(code) || screenshots.length || safeLine(form.overview);
+  const code = evidenceProfile.codeSnippet || '';
+  const hasEvidence = safeLine(code) || screenshots.length || evidenceProfile.overview;
   if (!hasEvidence) return [];
 
   const context = [
     code,
-    form.businessProcess,
-    form.overview,
+    evidenceProfile.businessProcess,
+    evidenceProfile.overview,
     ...screenshots.flatMap((shot) => [shot.screenType, shot.caption, shot.extractedText, shot.note, shot.name])
   ].map(safeLine).join(' ').toLowerCase();
   const codeDetails = inferCodeDetails(code, area);
@@ -914,14 +1015,15 @@ function splitDetailedFlowSteps(values) {
 }
 
 function buildTechnicalDiagramSteps(form, area, screenshots) {
-  const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(form.businessProcess));
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(evidenceProfile.businessProcess));
   if (describedSteps.length >= 3) return describedSteps.slice(0, 16);
 
-  const code = form.codeSnippet || '';
+  const code = evidenceProfile.codeSnippet || '';
   const context = [
     code,
-    form.businessProcess,
-    form.overview,
+    evidenceProfile.businessProcess,
+    evidenceProfile.overview,
     ...screenshots.flatMap((shot) => [shot.screenType, shot.caption, shot.extractedText, shot.note, shot.name])
   ].map(safeLine).join(' ').toLowerCase();
   const codeDetails = inferCodeDetails(code, area);
@@ -945,7 +1047,7 @@ function buildTechnicalDiagramSteps(form, area, screenshots) {
   addStep(codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/]), 'Inferred from evidence: log and route exceptions');
   addStep(hasAny(context, [/retry|reprocess|dead letter|queue|resubmit/]), 'Inferred from evidence: retry or reprocess failed item');
   addStep(hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/]), 'Inferred from evidence: monitor logs and message IDs');
-  addStep(safeLine(form.testingNotes), 'Provided by tester: validate with test evidence');
+  addStep(evidenceProfile.testingNotes, 'Provided by tester: validate with test evidence');
 
   if (steps.length >= 3) return steps.slice(0, 16);
   return buildProcessFlowSteps(form, area, screenshots)
@@ -1209,7 +1311,7 @@ function buildTemplateAlignmentContent(form, area) {
 }
 
 function buildCodeUnderstanding(form, area) {
-  const signals = detectCodeSignals(form.codeSnippet, area);
+  const signals = detectCodeSignals(getActiveCodeSnippet(form), area);
   return bulletList(signals);
 }
 
@@ -1248,11 +1350,12 @@ function getChecklistRows(area) {
 
 function buildAreaTestingStrategy(area, form, screenshots) {
   const profile = areaDocumentProfiles[area.id];
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const evidence = collectEvidenceSummary(screenshots);
   const base = profile?.testing || ['Validate happy path, failure path, authorization, deployment, and support monitoring for this solution area.'];
   return [
     ...base,
-    safeLine(form.testingNotes) ? `Project-specific testing note: ${safeLine(form.testingNotes)}` : '',
+    evidenceProfile.testingNotes ? `Project-specific testing note: ${evidenceProfile.testingNotes}` : '',
     evidence.length ? `Evidence to attach: ${evidence[0]}` : ''
   ].filter(Boolean);
 }
@@ -1275,49 +1378,54 @@ async function createBrandLogoAsset() {
 
 function buildUnitTestingPlan(area, form) {
   const profile = getValidationProfile(area);
-  const codeDetails = inferCodeDetails(form.codeSnippet, area);
+  const evidenceProfile = getEvidenceProfile(form, area, []);
+  const codeDetails = inferCodeDetails(evidenceProfile.codeSnippet, area);
   return [
-    safeLine(form.testingNotes) ? `Project testing scope: ${safeLine(form.testingNotes)}` : '',
+    evidenceProfile.testingNotes ? `Project testing scope: ${evidenceProfile.testingNotes}` : '',
     codeDetails.validations.length ? 'Unit tests should cover the validation and exception branches identified in the supplied code.' : '',
     codeDetails.operations.length ? 'Unit tests should cover the processing rules identified in the supplied code.' : '',
-    !safeLine(form.testingNotes) && safeLine(form.codeSnippet) ? profile.unit[0] : ''
+    !evidenceProfile.testingNotes && evidenceProfile.codeSnippet ? profile.unit[0] : ''
   ].filter(Boolean);
 }
 
 function buildIntegrationTestingPlan(area, form, screenshots) {
   const profile = getValidationProfile(area);
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const evidence = collectEvidenceSummary(screenshots);
   return [
-    safeLine(form.businessProcess) ? `End-to-end test path: ${safeLine(form.businessProcess)}` : '',
+    evidenceProfile.businessProcess ? `End-to-end test path: ${evidenceProfile.businessProcess}` : '',
     evidence.length ? `Evidence to attach: ${evidence[0]}` : '',
-    !safeLine(form.businessProcess) && !evidence.length && safeLine(form.testingNotes) ? profile.integration[0] : ''
+    !evidenceProfile.businessProcess && !evidence.length && evidenceProfile.testingNotes ? profile.integration[0] : ''
   ].filter(Boolean);
 }
 
 function buildRegressionTestingPlan(area, form) {
+  const evidenceProfile = getEvidenceProfile(form, area, []);
   return [
-    safeLine(form.testingNotes) ? `Regression coverage should include the scenarios called out in testing notes: ${safeLine(form.testingNotes)}` : '',
-    safeLine(form.businessProcess) ? `Regression should verify adjacent user journeys and integrations touched by: ${safeLine(form.businessProcess)}` : '',
-    safeLine(form.risks) ? `Include risk-based regression for: ${safeLine(form.risks)}` : '',
-    !safeLine(form.testingNotes) && !safeLine(form.businessProcess) ? getValidationProfile(area).regression[0] : ''
+    evidenceProfile.testingNotes ? `Regression coverage should include the scenarios called out in testing notes: ${evidenceProfile.testingNotes}` : '',
+    evidenceProfile.businessProcess ? `Regression should verify adjacent user journeys and integrations touched by: ${evidenceProfile.businessProcess}` : '',
+    evidenceProfile.risks ? `Include risk-based regression for: ${evidenceProfile.risks}` : '',
+    !evidenceProfile.testingNotes && !evidenceProfile.businessProcess ? getValidationProfile(area).regression[0] : ''
   ].filter(Boolean);
 }
 
 function buildDeploymentPlan(area, form) {
+  const evidenceProfile = getEvidenceProfile(form, area, []);
   return [
-    safeLine(form.configNotes) ? `Deployment/configuration notes: ${safeLine(form.configNotes)}` : '',
-    safeLine(form.system) ? `Target landscape: ${safeLine(form.system)}.` : '',
+    evidenceProfile.configNotes ? `Deployment/configuration notes: ${evidenceProfile.configNotes}` : '',
+    evidenceProfile.system ? `Target landscape: ${evidenceProfile.system}.` : '',
     'Record release owner, version/transport, deployment date, rollback approach, and post-deployment smoke-test result.'
   ].filter(Boolean);
 }
 
 function buildMonitoringSupportPlan(area, form, screenshots) {
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const evidence = collectEvidenceSummary(screenshots);
   return [
-    safeLine(form.risks) ? `Support watch items: ${safeLine(form.risks)}` : '',
+    evidenceProfile.risks ? `Support watch items: ${evidenceProfile.risks}` : '',
     evidence.length ? `Support evidence/reference: ${evidence[0]}` : '',
-    safeLine(form.businessProcess) ? `Support should validate the documented process outcome: ${safeLine(form.businessProcess)}` : '',
-    !safeLine(form.risks) && !evidence.length ? buildAreaSupportNotes(area)[0] : ''
+    evidenceProfile.businessProcess ? `Support should validate the documented process outcome: ${evidenceProfile.businessProcess}` : '',
+    !evidenceProfile.risks && !evidence.length ? buildAreaSupportNotes(area)[0] : ''
   ].filter(Boolean);
 }
 
@@ -1449,6 +1557,7 @@ function docRevisionTable(rows) {
 
 function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramAsset) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const templateRows = getTemplateMode(form) === 'upload'
     ? [
       ['Template source', 'Customer-provided template'],
@@ -1507,14 +1616,16 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
         })
       ]
     }),
-    new Paragraph({ text: safeLine(form.title) || 'Technical Documentation', heading: HeadingLevel.TITLE }),
+    new Paragraph({ text: evidenceProfile.title || 'Technical Documentation', heading: HeadingLevel.TITLE }),
     docInfoTable([
       ['Document type', selectedFormat.name],
       ['Solution area', area.name],
       ['Document version', safeLine(form.documentVersion) || '0.1 Draft'],
-      ['Owner', safeLine(form.owner) || 'TBD'],
-      ['Systems', safeLine(form.system) || 'TBD'],
+      ['Owner', evidenceProfile.owner || 'TBD'],
+      ['Systems', evidenceProfile.system || 'TBD'],
       ['Generated', new Date().toLocaleString()],
+      ['Evidence source', evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'],
+      ...(evidenceProfile.codeFileName ? [['Code file', evidenceProfile.codeFileName]] : []),
       ...templateRows
     ])
   ];
@@ -1557,14 +1668,14 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
     ]
     : [];
 
-  addSection('Purpose', [docParagraph(form.overview, { fallback: 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.' })]);
+  addSection('Purpose', [docParagraph(evidenceProfile.overview, { fallback: `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${evidenceProfile.sourceMode === 'screenshots' ? 'screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'code evidence' : 'project inputs'}.` })]);
   addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
   addSection('Revision History', [docRevisionTable([
     ['Version', 'Date', 'Author/Owner', 'Change Summary'],
     ...buildRevisionRows(form)
   ])]);
   addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
-  addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
+  addSection('Business Process', [docParagraph(evidenceProfile.businessProcess)], { skipWhenEmpty: true });
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
   addSection('Document Type Focus', docBullets(buildFormatFocusItems(form, area)));
   addSection('Solution Area Checklist', [docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail]))]);
@@ -1572,11 +1683,11 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
     docHeading(section, HeadingLevel.HEADING_3),
     ...docBullets(buildSectionInsights(area, section, form, screenshots))
   ]));
-  addSection('Configuration Notes', [docParagraph(form.configNotes, { fallback: 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.' })]);
+  addSection('Configuration Notes', [docParagraph(evidenceProfile.configNotes)], { skipWhenEmpty: true });
 
-  if (safeLine(form.codeSnippet)) {
-    addSection('Code Understanding', docBullets(detectCodeSignals(form.codeSnippet, area)));
-    addSection('Code Snippet', [docCodeBlock(form.codeSnippet)]);
+  if (safeLine(evidenceProfile.codeSnippet)) {
+    addSection('Code Understanding', docBullets(detectCodeSignals(evidenceProfile.codeSnippet, area)));
+    addSection('Code Snippet', [docCodeBlock(evidenceProfile.codeSnippet)]);
   }
 
   if (screenshots.length) {
@@ -1629,9 +1740,10 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
 
 function buildAreaRiskControls(area, form) {
   const profile = areaDocumentProfiles[area.id];
+  const evidenceProfile = getEvidenceProfile(form, area, []);
   return [
     ...(profile?.risks || ['Confirm solution-specific operational, security, transport, and data risks.']),
-    safeLine(form.risks) ? `Project-specific risk/open item: ${safeLine(form.risks)}` : ''
+    evidenceProfile.risks ? `Project-specific risk/open item: ${evidenceProfile.risks}` : ''
   ].filter(Boolean);
 }
 
@@ -1681,6 +1793,7 @@ function getScreenshotObservations(shot, area, contextOverride) {
 }
 
 function buildFormatSpecificSections(form, area, screenshots) {
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const areaPrompts = getChecklistRows(area).map((row) => `- ${row.item}: ${row.detail}`).join('\n');
   const sectionDetails = area.sections.map((section) => {
     const insights = buildSectionInsights(area, section, form, screenshots);
@@ -1695,10 +1808,10 @@ function buildFormatSpecificSections(form, area, screenshots) {
   const deploymentPlan = bulletList(buildDeploymentPlan(area, form));
   const monitoringSupport = bulletList(buildMonitoringSupportPlan(area, form, screenshots));
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
-  const codeSections = safeLine(form.codeSnippet)
+  const codeSections = safeLine(evidenceProfile.codeSnippet)
     ? [
       ['Code Understanding', buildCodeUnderstanding(form, area)],
-      ['Code Snippet', `\`\`\`\n${form.codeSnippet}\n\`\`\``]
+      ['Code Snippet', `\`\`\`\n${evidenceProfile.codeSnippet}\n\`\`\``]
     ]
     : [];
   const screenshotSections = screenshots.length
@@ -1709,11 +1822,11 @@ function buildFormatSpecificSections(form, area, screenshots) {
     : [];
   const approval = `${bulletList(buildApprovalHandoverPlan(area))}\n\n| Field | Detail |\n| --- | --- |\n${buildApprovalRows().map(([field, value]) => `| ${field} | ${value} |`).join('\n')}`;
   const commonStart = [
-    ['Purpose', safeLine(form.overview) || 'Explain why this document is being created, which solution or change it covers, who will use it, and how it supports review, testing, deployment, support, and handover.'],
+    ['Purpose', evidenceProfile.overview || `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${evidenceProfile.sourceMode === 'screenshots' ? 'screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'code evidence' : 'project inputs'}.`],
     ['Generated Implementation Summary', implementationSummary],
     ['Revision History', revisionHistory],
     ['Process Flow', processFlow],
-    ['Business Process', safeLine(form.businessProcess) || 'Describe the end-to-end process, trigger, users/systems, and expected result.'],
+    ['Business Process', evidenceProfile.businessProcess],
     ['Template Alignment', buildTemplateAlignmentContent(form, area)],
     ['Document Type Focus', bulletList(buildFormatFocusItems(form, area))]
   ];
@@ -1723,7 +1836,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
       ...commonStart,
       ['Functional Scope And Requirements', areaPrompts],
       ['Business Rules And User Experience', bulletList([
-        safeLine(form.businessProcess) ? `Business journey: ${safeLine(form.businessProcess)}` : '',
+        evidenceProfile.businessProcess ? `Business journey: ${evidenceProfile.businessProcess}` : '',
         'Document actors, trigger events, decision points, approvals, exceptions, and expected business outcomes.',
         'Confirm value help, validation messages, mandatory fields, and acceptance criteria with business users.'
       ])],
@@ -1741,7 +1854,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
       ['Monitoring And Alerting', monitoringSupport],
       ['Troubleshooting And Diagnostics', bulletList([
         'Use captured message IDs, application logs, run history, browser console/network traces, or SAP transaction logs to locate failures.',
-        safeLine(form.testingNotes) ? `Known validation evidence: ${safeLine(form.testingNotes)}` : '',
+        evidenceProfile.testingNotes ? `Known validation evidence: ${evidenceProfile.testingNotes}` : '',
         'Record first-response checks, common failure symptoms, and the team responsible for each recovery step.'
       ])],
       ['Recovery And Reprocessing', bulletList([
@@ -1758,7 +1871,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     return [
       ...commonStart,
       ['Delivered Scope', implementationSummary],
-      ['Technical And Configuration Handover', `${sectionDetails}\n\n### Configuration Notes\n${safeLine(form.configNotes) || 'Document configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}`],
+      ['Technical And Configuration Handover', `${sectionDetails}\n\n### Configuration Notes\n${evidenceProfile.configNotes || 'Document configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'}`],
       ...codeSections,
       ...screenshotSections,
       ['Testing Evidence Summary', `${unitTesting}\n${integrationTesting}\n${regressionTesting}`],
@@ -1772,7 +1885,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     ...commonStart,
     ['Solution Area Checklist', areaPrompts],
     ['Technical Design', sectionDetails],
-    ['Configuration Notes', safeLine(form.configNotes) || 'List configuration, destinations, roles, communication arrangements, feature flags, and environment-specific values.'],
+    ['Configuration Notes', evidenceProfile.configNotes],
     ...codeSections,
     ...screenshotSections,
     ['Unit Testing', unitTesting],
@@ -1787,6 +1900,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
 
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const sections = buildFormatSpecificSections(form, area, screenshots)
     .filter(([, content]) => safeLine(content));
 
@@ -1794,8 +1908,8 @@ function buildDocumentation(form, area, screenshots) {
     .map(([title, content], index) => `## ${index + 1}. ${title}\n${content}`)
     .join('\n\n');
 
-  return `${buildBrandingMarkdown(form)}\n\n# ${safeLine(form.title) || 'Technical Documentation'}\n\n` +
-    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${safeLine(form.owner) || 'TBD'} |\n| Systems | ${safeLine(form.system) || 'TBD'} |\n| Generated | ${new Date().toLocaleString()} |\n\n` +
+  return `${buildBrandingMarkdown(form)}\n\n# ${evidenceProfile.title || 'Technical Documentation'}\n\n` +
+    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${evidenceProfile.owner || 'TBD'} |\n| Systems | ${evidenceProfile.system || 'TBD'} |\n| Evidence source | ${evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'} |\n${evidenceProfile.codeFileName ? `| Code file | ${evidenceProfile.codeFileName} |\n` : ''}| Generated | ${new Date().toLocaleString()} |\n\n` +
     `${body}\n`;
 }
 
@@ -2009,7 +2123,15 @@ function App() {
         imageFiles.map(async (file) => createScreenshotRecord(file, await readFileAsDataUrl(file)))
       );
       setScreenshots((current) => [...current, ...records]);
-      showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added`);
+      setForm((current) => ({
+        ...current,
+        title: evidenceLine(current, 'title') ? current.title : humanizeArtifactName(records[0]?.caption || records[0]?.name),
+        businessProcess: evidenceLine(current, 'businessProcess') ? current.businessProcess : records.map((record) => humanizeArtifactName(record.caption || record.name)).join(' -> '),
+        codeSnippet: '',
+        codeFileName: '',
+        codeFileType: ''
+      }));
+      showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added; code evidence cleared`);
     } catch {
       showToast('Could not load screenshot image');
     } finally {
@@ -2190,8 +2312,16 @@ function App() {
 
     try {
       const text = await file.text();
-      updateForm('codeSnippet', text);
-      showToast(`Code loaded from ${file.name}`);
+      setScreenshots([]);
+      setForm((current) => ({
+        ...current,
+        title: evidenceLine(current, 'title') ? current.title : humanizeArtifactName(file.name),
+        businessProcess: evidenceLine(current, 'businessProcess') ? current.businessProcess : `Process inferred from code artifact ${file.name}.`,
+        codeSnippet: text,
+        codeFileName: file.name,
+        codeFileType: file.type || file.name.split('.').pop()?.toUpperCase() || 'Code'
+      }));
+      showToast(`Code loaded from ${file.name}; screenshots cleared`);
     } catch {
       showToast('Could not read code file');
     } finally {
@@ -2234,7 +2364,7 @@ function App() {
   }
 
   async function exportWord() {
-    const filename = buildTechSpecFilename(form.title, form.documentVersion);
+    const filename = buildTechSpecFilename(deriveDocumentTitle(form, selectedArea, screenshots), form.documentVersion);
     const brandLogoAsset = await createBrandLogoAsset();
     const flowDiagramAsset = await createFlowDiagramAsset(buildTechnicalDiagramSteps(form, selectedArea, screenshots));
     const wordDocument = buildDocxDocument(form, selectedArea, screenshots, brandLogoAsset, flowDiagramAsset);
