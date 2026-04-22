@@ -832,15 +832,66 @@ function buildProcessFlowText(form, area, screenshots) {
     .join('\n');
 }
 
+function splitDetailedFlowSteps(values) {
+  return values
+    .flatMap((value) => safeLine(value)
+      .replace(/\s*(?:->|→)\s*/g, '. ')
+      .split(/(?:\r?\n|(?<=[.!?])\s+|\s*;\s*|\s*,\s+|\s+\band\b\s+|\s+\bthen\b\s+)/i)
+    )
+    .map((value) => safeLine(value).replace(/^[\d.)\s-]+/, '').replace(/[.!?]+$/g, ''))
+    .filter((value) => value.length > 5)
+    .filter((value, index, list) => list.indexOf(value) === index);
+}
+
+function buildTechnicalDiagramSteps(form, area, screenshots) {
+  const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(form.businessProcess));
+  if (describedSteps.length >= 3) return describedSteps.slice(0, 16);
+
+  const code = form.codeSnippet || '';
+  const context = [
+    code,
+    form.businessProcess,
+    form.overview,
+    ...screenshots.flatMap((shot) => [shot.screenType, shot.caption, shot.extractedText, shot.note, shot.name])
+  ].map(safeLine).join(' ').toLowerCase();
+  const codeDetails = inferCodeDetails(code, area);
+  const steps = [];
+  const addStep = (condition, label) => {
+    if (condition && !steps.includes(label)) steps.push(label);
+  };
+
+  addStep(hasAny(context, [/trigger|schedule|event|button|tile|launchpad|source|sender|workflow|http|api|request|payload/]), 'Receive trigger or user action');
+  addStep(hasAny(context, [/payload|json|xml|message|body|request/]) || codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)), 'Read incoming payload');
+  addStep(codeDetails.operations.some((item) => /payload|parsing|serialization/i.test(item)) || hasAny(context, [/deserialize|serialize|parse|json|xml/]), 'Parse source structure');
+  addStep(codeDetails.operations.some((item) => /mapping|transformation/i.test(item)) || hasAny(context, [/mapping|transform|content modifier|message mapping|field mapping/]), 'Map source fields to target');
+  addStep(codeDetails.validations.length || hasAny(context, [/mandatory|required|validate|validation|is initial|invalid|missing/]), 'Validate mandatory fields');
+  addStep(hasAny(context, [/rule|condition|case|switch|if |filter|where|loop|business rule/]), 'Apply business rules');
+  addStep(codeDetails.security.length || hasAny(context, [/role|authorization|oauth|credential|destination|secret|certificate|authority-check/]), 'Check access and credentials');
+  addStep(codeDetails.integrations.length || hasAny(context, [/adapter|iflow|odata|service|api|connector|logic app|occ|receiver|sender|endpoint/]), 'Call integration or service layer');
+  addStep(hasAny(context, [/receiver|target|sap|s\/4|commerce|btp|azure|endpoint/]), 'Route to target system');
+  addStep(codeDetails.persistence.length || hasAny(context, [/select|read|entity|table|cds|database/]), 'Read target data');
+  addStep(codeDetails.persistence.length || hasAny(context, [/insert|update|modify|delete|persist|commit|posted|created|updated/]), 'Create or update records');
+  addStep(hasAny(context, [/response|acknowledg|confirmation|status|200|ok|success|completed|processed|green/]), 'Return status or confirmation');
+  addStep(codeDetails.errors.length || hasAny(context, [/error|failed|exception|timeout|retry|reprocess|dead letter|alert|red|dump/]), 'Log and route exceptions');
+  addStep(hasAny(context, [/retry|reprocess|dead letter|queue|resubmit/]), 'Retry or reprocess failed item');
+  addStep(hasAny(context, [/monitor|trace|log|run history|message id|correlation|application log|slg1|payload/]), 'Monitor logs and message IDs');
+  addStep(safeLine(form.testingNotes), 'Validate with test evidence');
+
+  if (steps.length >= 3) return steps.slice(0, 16);
+  return buildProcessFlowSteps(form, area, screenshots)
+    .flatMap((step) => splitDetailedFlowSteps([step]))
+    .slice(0, 16);
+}
+
 function cleanFlowLabel(value, fallback) {
   return safeLine(value)
     .replace(/[`"'<>|{}[\]]/g, '')
     .replace(/\s+/g, ' ')
-    .slice(0, 92)
+    .slice(0, 72)
     || fallback;
 }
 
-function wrapSvgText(value, maxLength = 28) {
+function wrapSvgText(value, maxLength = 22) {
   const words = cleanFlowLabel(value, 'Process step')
     .split(' ')
     .flatMap((word) => {
@@ -882,16 +933,16 @@ function buildMermaidFlowDiagram(steps) {
 }
 
 function buildFlowDiagramSvg(steps) {
-  const usableSteps = steps.filter(Boolean).slice(0, 12);
+  const usableSteps = steps.filter(Boolean).slice(0, 16);
   if (!usableSteps.length) return '';
 
-  const columnCount = Math.min(3, usableSteps.length);
-  const nodeWidth = 250;
-  const nodeHeight = 88;
-  const gapX = 62;
-  const gapY = 58;
-  const marginX = 36;
-  const marginTop = 84;
+  const columnCount = Math.min(4, usableSteps.length);
+  const nodeWidth = 196;
+  const nodeHeight = 68;
+  const gapX = 36;
+  const gapY = 42;
+  const marginX = 28;
+  const marginTop = 70;
   const rowCount = Math.ceil(usableSteps.length / columnCount);
   const width = marginX * 2 + columnCount * nodeWidth + (columnCount - 1) * gapX;
   const height = marginTop + rowCount * nodeHeight + (rowCount - 1) * gapY + 44;
@@ -930,13 +981,13 @@ function buildFlowDiagramSvg(steps) {
     const stroke = isStart ? '#101820' : '#167a5b';
     const textColor = isStart || isEnd ? '#ffffff' : '#101820';
     const lines = wrapSvgText(step);
-    const textStartY = y + 34 - (lines.length - 1) * 9;
+    const textStartY = y + 28 - (lines.length - 1) * 7;
 
     return [
-      `<rect x="${x}" y="${y}" width="${nodeWidth}" height="${nodeHeight}" rx="14" fill="${fill}" stroke="${stroke}" stroke-width="3" />`,
-      `<circle cx="${x + 26}" cy="${y + 26}" r="15" fill="${isStart || isEnd ? '#ffffff' : '#167a5b'}" opacity="${isStart || isEnd ? '0.95' : '1'}" />`,
-      `<text x="${x + 26}" y="${y + 31}" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="${isStart || isEnd ? '#101820' : '#ffffff'}">${index + 1}</text>`,
-      ...lines.map((line, lineIndex) => `<text x="${x + 52}" y="${textStartY + lineIndex * 20}" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="${textColor}">${escapeHtml(line)}</text>`)
+      `<rect x="${x}" y="${y}" width="${nodeWidth}" height="${nodeHeight}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2.5" />`,
+      `<circle cx="${x + 22}" cy="${y + 22}" r="12" fill="${isStart || isEnd ? '#ffffff' : '#167a5b'}" opacity="${isStart || isEnd ? '0.95' : '1'}" />`,
+      `<text x="${x + 22}" y="${y + 26}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="800" fill="${isStart || isEnd ? '#101820' : '#ffffff'}">${index + 1}</text>`,
+      ...lines.map((line, lineIndex) => `<text x="${x + 42}" y="${textStartY + lineIndex * 16}" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="${textColor}">${escapeHtml(line)}</text>`)
     ].join('\n');
   }).join('\n');
 
@@ -948,8 +999,8 @@ function buildFlowDiagramSvg(steps) {
   </defs>
   <rect width="${width}" height="${height}" rx="18" fill="#ffffff" />
   <rect x="18" y="18" width="${width - 36}" height="${height - 36}" rx="14" fill="#f7fbf9" stroke="#101820" stroke-width="2" />
-  <text x="36" y="52" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#101820">Technical Flow Diagram</text>
-  <text x="${width - 36}" y="52" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="800" fill="#167a5b">Generated from process evidence</text>
+  <text x="30" y="48" font-family="Arial, sans-serif" font-size="20" font-weight="800" fill="#101820">Technical Flow Diagram</text>
+  <text x="${width - 30}" y="48" text-anchor="end" font-family="Arial, sans-serif" font-size="12" font-weight="800" fill="#167a5b">Detailed technical steps</text>
   ${connectors}
   ${nodes}
 </svg>`;
@@ -1018,12 +1069,13 @@ async function createFlowDiagramAsset(steps) {
 
 function buildProcessFlowContent(form, area, screenshots) {
   const steps = buildProcessFlowSteps(form, area, screenshots);
+  const diagramSteps = buildTechnicalDiagramSteps(form, area, screenshots);
   if (!steps.length) return '';
 
   return [
     steps.map((step, index) => `${index + 1}. ${step}`).join('\n'),
     '### Technical Flow Diagram',
-    buildMermaidFlowDiagram(steps)
+    buildMermaidFlowDiagram(diagramSteps)
   ].join('\n\n');
 }
 
@@ -1701,13 +1753,13 @@ function App() {
     () => buildDocumentation(form, selectedArea, screenshots),
     [form, selectedArea, screenshots]
   );
-  const previewProcessFlowSteps = useMemo(
-    () => buildProcessFlowSteps(form, selectedArea, screenshots),
+  const previewTechnicalDiagramSteps = useMemo(
+    () => buildTechnicalDiagramSteps(form, selectedArea, screenshots),
     [form, selectedArea, screenshots]
   );
   const previewFlowDiagramSvg = useMemo(
-    () => buildFlowDiagramSvg(previewProcessFlowSteps),
-    [previewProcessFlowSteps]
+    () => buildFlowDiagramSvg(previewTechnicalDiagramSteps),
+    [previewTechnicalDiagramSteps]
   );
 
   const stats = useMemo(() => {
@@ -1978,7 +2030,7 @@ function App() {
   async function exportWord() {
     const filename = buildTechSpecFilename(form.title);
     const fairLogoBytes = await loadFairLogoBytes();
-    const flowDiagramAsset = await createFlowDiagramAsset(buildProcessFlowSteps(form, selectedArea, screenshots));
+    const flowDiagramAsset = await createFlowDiagramAsset(buildTechnicalDiagramSteps(form, selectedArea, screenshots));
     const wordDocument = buildDocxDocument(form, selectedArea, screenshots, fairLogoBytes, flowDiagramAsset);
     const wordBlob = await Packer.toBlob(wordDocument);
     setActiveTab('preview');
@@ -2414,7 +2466,7 @@ function App() {
                 <div className="flow-diagram-preview" aria-label="Technical flow diagram preview">
                   <div className="flow-diagram-preview-header">
                     <strong>Technical Flow Diagram</strong>
-                    <span>Green and black flowchart generated from Process Flow</span>
+                    <span>Compact flowchart with segregated technical steps</span>
                   </div>
                   <div dangerouslySetInnerHTML={{ __html: previewFlowDiagramSvg }} />
                 </div>

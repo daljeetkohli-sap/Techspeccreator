@@ -134,7 +134,7 @@ It can identify whether a screenshot appears related to:
 
 The app prioritizes the user's Business Process description when creating Process Flow. If the user provides a real process narrative, the app converts that into process steps rather than generating a generic flow.
 
-The Process Flow section also includes a Technical Flow Diagram generated from the same steps. Preview, Confluence copy, and Word export include a proper green-and-black flowchart so reviewers can see how the technical process runs end to end.
+The Process Flow section also includes a Technical Flow Diagram generated from the same evidence. The written Process Flow can remain narrative, while the diagram breaks the flow into smaller technical actions such as receiving the trigger, reading the payload, parsing structure, mapping fields, validating mandatory data, checking credentials, calling the integration/service layer, updating records, returning status, logging exceptions, and monitoring message IDs. Preview, Confluence copy, and Word export include a compact green-and-black flowchart so reviewers can see how the technical process runs end to end.
 
 When code or evidence is supplied, it can also infer steps around:
 
