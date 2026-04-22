@@ -39,6 +39,7 @@ npm run build
 - Paste or attach ABAP, JSON, XML, JavaScript, Groovy, and CDS snippets and verify generated document text preserves formatting.
 - Verify the Code Understanding section identifies relevant patterns such as ABAP logic, OData/service exposure, CAP/CDS, Fiori/UI5, CPI/Groovy, Azure Logic Apps, Commerce, Spartacus, error handling, and possible secrets.
 - Verify the Process Flow section infers trigger/input, parse/map, validation, integration, data update, success outcome, exception path, and monitoring/support steps from the supplied code and screenshot evidence.
+- Confirm Process Flow also includes a Technical Flow Diagram: Preview and Confluence copy should show a Mermaid `flowchart TD` block, and the downloaded Word file should show a readable numbered arrow flow.
 - Clear the code snippet and screenshots, regenerate the document, and confirm Code Snippet, Code Understanding, Screenshot Evidence, and Screenshot Review sections are skipped instead of saying inputs are missing.
 - Confirm Template Alignment and the header table do not expose internal generated template structure, section numbering rules, or generation instructions.
 - Confirm Approval And Handover includes concise approval/handover guidance plus sign-off fields rather than pasting the full Business Process text.

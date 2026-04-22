@@ -832,6 +832,45 @@ function buildProcessFlowText(form, area, screenshots) {
     .join('\n');
 }
 
+function cleanFlowLabel(value, fallback) {
+  return safeLine(value)
+    .replace(/[`"'<>|{}[\]]/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 92)
+    || fallback;
+}
+
+function buildTextFlowDiagram(steps) {
+  return steps
+    .filter(Boolean)
+    .map((step, index) => `[${index + 1}] ${cleanFlowLabel(step, `Step ${index + 1}`)}`)
+    .join('\n  -> ');
+}
+
+function buildMermaidFlowDiagram(steps) {
+  const usableSteps = steps.filter(Boolean);
+  if (!usableSteps.length) return '';
+
+  const nodes = usableSteps.map((step, index) => {
+    const nodeId = `S${index + 1}`;
+    return `  ${nodeId}["${cleanFlowLabel(step, `Step ${index + 1}`)}"]`;
+  });
+  const links = usableSteps.slice(1).map((_, index) => `  S${index + 1} --> S${index + 2}`);
+
+  return ['```mermaid', 'flowchart TD', ...nodes, ...links, '```'].join('\n');
+}
+
+function buildProcessFlowContent(form, area, screenshots) {
+  const steps = buildProcessFlowSteps(form, area, screenshots);
+  if (!steps.length) return '';
+
+  return [
+    steps.map((step, index) => `${index + 1}. ${step}`).join('\n'),
+    '### Technical Flow Diagram',
+    buildMermaidFlowDiagram(steps)
+  ].join('\n\n');
+}
+
 function buildAutomaticTemplateOutline(form, area) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const designSections = area.sections.map((section, index) => `${index + 1}. ${section}`).join('\n');
@@ -1146,10 +1185,18 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
     children.push(...content);
     sectionNumber += 1;
   };
+  const processFlowSteps = buildProcessFlowSteps(form, area, screenshots);
+  const processFlowBody = processFlowSteps.length
+    ? [
+      ...docNumbered(processFlowSteps),
+      docHeading('Technical Flow Diagram', HeadingLevel.HEADING_3),
+      docCodeBlock(buildTextFlowDiagram(processFlowSteps))
+    ]
+    : [];
 
   addSection('Purpose', [docParagraph(form.overview, { fallback: 'Explain why this technical specification is being created, which solution or change it documents, who will use it, and how it supports design review, testing, deployment, support, and handover.' })]);
   addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
-  addSection('Process Flow', docNumbered(buildProcessFlowSteps(form, area, screenshots)), { skipWhenEmpty: true });
+  addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(form.businessProcess, { fallback: 'Describe the end-to-end process, trigger, users/systems, and expected result.' })]);
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
   addSection('Solution Area Checklist', [docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail]))]);
@@ -1273,7 +1320,7 @@ function buildDocumentation(form, area, screenshots) {
     return `### ${section}\n${bulletList(insights)}`;
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
-  const processFlow = buildProcessFlowText(form, area, screenshots);
+  const processFlow = buildProcessFlowContent(form, area, screenshots);
   const unitTesting = bulletList(buildUnitTestingPlan(area, form));
   const integrationTesting = bulletList(buildIntegrationTestingPlan(area, form, screenshots));
   const regressionTesting = bulletList(buildRegressionTestingPlan(area, form));
@@ -1346,6 +1393,7 @@ function markdownToConfluenceHtml(markdown) {
   let tableLines = [];
   let codeLines = [];
   let inCode = false;
+  let codeLanguage = '';
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
@@ -1375,12 +1423,15 @@ function markdownToConfluenceHtml(markdown) {
   lines.forEach((line) => {
     if (line.trim().startsWith('```')) {
       if (inCode) {
-        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
+        html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
         codeLines = [];
         inCode = false;
+        codeLanguage = '';
       } else {
         flushOpenBlocks();
         inCode = true;
+        codeLanguage = line.trim().replace(/^```/, '').trim().replace(/[^a-z0-9_-]/gi, '').toLowerCase();
       }
       return;
     }
@@ -1442,7 +1493,8 @@ function markdownToConfluenceHtml(markdown) {
   });
 
   if (inCode) {
-    html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
+    html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
   }
   flushOpenBlocks();
 
