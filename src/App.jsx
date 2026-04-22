@@ -715,7 +715,7 @@ function extractMatches(text, patterns) {
 
 function getScreenshotEvidenceText(screenshots) {
   return (screenshots || [])
-    .flatMap((shot) => [shot.screenType, shot.caption, shot.name, shot.extractedText, shot.note])
+    .flatMap((shot) => [shot.screenType, shot.caption, shot.name, displayEvidenceText(shot.extractedText, 1200), shot.note])
     .map(safeLine)
     .filter(Boolean)
     .join('\n');
@@ -730,6 +730,38 @@ function uniqueItems(values) {
     .map(safeLine)
     .filter(Boolean)
     .filter((value, index, list) => list.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index);
+}
+
+function cleanEvidenceText(value) {
+  return safeLine(value)
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+    .replace(/\b(?:undefined|null|nan)\b/gi, ' ')
+    .replace(/[^\w\s:/+().,_-]/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function isNoisyEvidenceText(value) {
+  const text = cleanEvidenceText(value);
+  if (!text) return true;
+  const compact = text.replace(/\s+/g, '');
+  if (compact.length < 5) return true;
+  const alphaNum = (compact.match(/[a-z0-9]/gi) || []).length;
+  if (alphaNum / compact.length < 0.55) return true;
+  const words = text.split(/\s+/).filter(Boolean);
+  const shortWords = words.filter((word) => word.length <= 2).length;
+  return words.length > 8 && shortWords / words.length > 0.55;
+}
+
+function displayEvidenceText(value, maxLength = 260) {
+  const text = cleanEvidenceText(value);
+  if (isNoisyEvidenceText(text)) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text;
+}
+
+function isWeakArtifactCandidate(value) {
+  return /^(image|screenshot|capture|screen|figure|test|evidence|integration|process|sender|receiver|start|end|error|message|payload|http|amqp|sap|dev|runtime|status)$/i.test(safeLine(value));
 }
 
 function normalizeIflowText(value) {
@@ -747,6 +779,10 @@ function includesAny(value, labels) {
 
 function extractKnownLabels(context, labels) {
   return labels.filter((label) => includesAny(context, [label]));
+}
+
+function labelVariants(context, variants, canonical) {
+  return variants.some((variant) => includesAny(context, [variant])) ? canonical : '';
 }
 
 function inferSystemsFromIflowName(name, context) {
@@ -814,31 +850,53 @@ function extractIntegrationFlowFacts(form, screenshots) {
     /sender/i.test(context) ? 'Sender participant captured in iFlow' : '',
     /fareye|far eye/i.test(context) ? 'FarEye receiver endpoint' : ''
   ]);
-  const mainSteps = extractKnownLabels(context, [
-    'Set Standard Headers',
-    'Log Payload',
-    'Map to FarEye',
-    'Get Authorisation',
-    'Get Authorization',
-    'Set Log Attachment',
-    'Post to FarEye'
+  const mainSteps = uniqueItems([
+    ...extractKnownLabels(context, [
+      'Set Standard Headers',
+      'Log Payload',
+      'Map to FarEye',
+      'Get Authorisation',
+      'Get Authorization',
+      'Set Log Attachment',
+      'Post to FarEye'
+    ]),
+    labelVariants(context, ['Set Standard Headers', 'Standard Headers', 'Std Headers'], 'Set Standard Headers'),
+    labelVariants(context, ['Log Payload', 'Log Payload1', 'Log Payload 1'], 'Log Payload'),
+    labelVariants(context, ['Map to FarEye', 'Mapping to FarEye', 'Map FarEye'], 'Map to FarEye'),
+    labelVariants(context, ['Get Authorisation', 'Get Authorization', 'Get Authorisation1', 'Get Access'], 'Get Authorisation'),
+    labelVariants(context, ['Set Log Attachment', 'Log Attachment'], 'Set Log Attachment'),
+    labelVariants(context, ['Post to FarEye', 'Post FarEye'], 'Post to FarEye')
   ]);
-  const authSteps = extractKnownLabels(context, [
-    'Set Client ID + Secret',
-    'Set Client ID Secret',
-    'Set Auth Base64',
-    'Get Access Token',
-    'Set Auth'
+  const authSteps = uniqueItems([
+    ...extractKnownLabels(context, [
+      'Set Client ID + Secret',
+      'Set Client ID Secret',
+      'Set Auth Base64',
+      'Get Access Token',
+      'Set Auth'
+    ]),
+    labelVariants(context, ['Client ID + Secret', 'Client ID Secret', 'Client Id Secret'], 'Set Client ID + Secret'),
+    labelVariants(context, ['Auth Base64', 'Set Auth Base64'], 'Set Auth Base64'),
+    labelVariants(context, ['Access Token', 'Get Access Token'], 'Get Access Token'),
+    labelVariants(context, ['Set Auth', 'Authorization Header'], 'Set Auth')
   ]);
-  const mappingSteps = extractKnownLabels(context, [
-    'JSON to XML Converter 1',
-    'JSON to XML Converter',
-    'MM_ECC_to_FarEye',
-    'Set Application ID',
-    'XML to JSON Converter 1',
-    'XML to JSON Converter',
-    'Normalize Payload',
-    'Persist Data'
+  const mappingSteps = uniqueItems([
+    ...extractKnownLabels(context, [
+      'JSON to XML Converter 1',
+      'JSON to XML Converter',
+      'MM_ECC_to_FarEye',
+      'Set Application ID',
+      'XML to JSON Converter 1',
+      'XML to JSON Converter',
+      'Normalize Payload',
+      'Persist Data'
+    ]),
+    labelVariants(context, ['JSON to XML', 'JSON_to_XML'], 'JSON to XML Converter'),
+    labelVariants(context, ['MM_ECC_to_FarEye', 'ECC to FarEye', 'ECC_to_FarEye'], 'MM_ECC_to_FarEye'),
+    labelVariants(context, ['Application ID', 'Set Application ID'], 'Set Application ID'),
+    labelVariants(context, ['XML to JSON', 'XML_to_JSON'], 'XML to JSON Converter'),
+    labelVariants(context, ['Normalize Payload', 'Normalise Payload'], 'Normalize Payload'),
+    labelVariants(context, ['Persist Data'], 'Persist Data')
   ]);
   const exceptionSteps = uniqueItems([
     /exception subprocess/i.test(context) ? 'Exception subprocess is present' : '',
@@ -851,7 +909,7 @@ function extractIntegrationFlowFacts(form, screenshots) {
   const processSteps = uniqueItems([
     systems.source || /sender/i.test(context) ? `Receive consignment message from ${source} using AMQP` : '',
     mainSteps.includes('Set Standard Headers') ? 'Set standard message headers' : '',
-    mainSteps.includes('Log Payload') ? 'Log inbound payload for traceability' : '',
+    mainSteps.includes('Log Payload') ? 'Log inbound payload before transformation' : '',
     includesAny(context, ['Map to FarEye']) ? 'Call the Map to FarEye subprocess' : '',
     includesAny(context, ['JSON to XML Converter']) ? 'Convert JSON payload to XML for mapping' : '',
     includesAny(context, ['MM_ECC_to_FarEye']) ? 'Map SAP ECC structure to FarEye payload using MM_ECC_to_FarEye' : '',
@@ -865,7 +923,7 @@ function extractIntegrationFlowFacts(form, screenshots) {
     includesAny(context, ['Get Access Token']) ? 'Retrieve FarEye access token over HTTP' : '',
     includesAny(context, ['Set Auth']) ? 'Set authorization header/property for the receiver call' : '',
     mainSteps.includes('Set Log Attachment') ? 'Attach log metadata or payload evidence' : '',
-    mainSteps.filter((step) => step === 'Log Payload').length > 1 ? 'Log outbound payload before receiver call' : '',
+    mainSteps.includes('Log Payload') && includesAny(context, ['Post to FarEye']) ? 'Log outbound payload before receiver call' : '',
     includesAny(context, ['Post to FarEye']) ? `Post consignment payload to ${target} using HTTP` : '',
     exceptionSteps.length ? 'Route technical failures to exception subprocess and log error message' : ''
   ]);
@@ -881,6 +939,7 @@ function extractIntegrationFlowFacts(form, screenshots) {
     includesAny(context, ['Persist Data']) ? 'Persist data' : '',
     includesAny(context, ['Get Authorisation', 'Get Authorization']) ? 'Get FarEye auth token' : '',
     includesAny(context, ['Set Log Attachment']) ? 'Set log attachment' : '',
+    mainSteps.includes('Log Payload') && includesAny(context, ['Post to FarEye']) ? 'Log outbound payload' : '',
     includesAny(context, ['Post to FarEye']) ? 'Post to FarEye over HTTP' : '',
     exceptionSteps.length ? 'Log error message on exception' : ''
   ]);
@@ -971,7 +1030,7 @@ function inferCodeDetails(code, area) {
 function collectEvidenceSummary(screenshots) {
   return screenshots.map((shot, index) => {
     const caption = safeLine(shot.caption) || shot.name;
-    const visible = safeLine(shot.extractedText);
+    const visible = displayEvidenceText(shot.extractedText, 220);
     const note = safeLine(shot.note);
     return `Figure ${index + 1} (${shot.screenType}): ${caption}${visible ? `; visible text: ${visible}` : ''}${note ? `; note: ${note}` : ''}`;
   });
@@ -1003,7 +1062,7 @@ function extractGenericEvidenceFacts(form, area, screenshots) {
       /\b([A-Z][A-Za-z0-9]+(?:Service|Controller|Component|Handler|Router|Facade|Populator|CronJob|Workflow|LogicApp))\b/g,
       /\b([ZY][A-Z0-9_]{4,})\b/g
     ])
-  ]);
+  ]).filter((item) => !isWeakArtifactCandidate(item));
   const processSteps = [];
   const addStep = (condition, step) => {
     if (condition && !processSteps.includes(step)) processSteps.push(step);
@@ -1046,10 +1105,11 @@ function extractGenericEvidenceFacts(form, area, screenshots) {
 
 function getEvidenceTitleFromInputs(form, area, screenshots) {
   if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
-  const codeDetails = inferCodeDetails(getActiveEvidenceText(form, screenshots), area);
-  if (codeDetails.objects.length) return humanizeArtifactName(codeDetails.objects[0]);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.iflowName) return iflowFacts.iflowName;
+  const codeDetails = inferCodeDetails(getActiveEvidenceText(form, screenshots), area);
+  const usefulObject = codeDetails.objects.find((item) => !isWeakArtifactCandidate(item));
+  if (usefulObject) return humanizeArtifactName(usefulObject);
   const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   if (genericFacts.title) return humanizeArtifactName(genericFacts.title);
   const firstScreenshot = screenshots[0];
@@ -1116,6 +1176,32 @@ function deriveBusinessProcessText(form, area, screenshots) {
   return '';
 }
 
+function derivePurposeText(form, area, screenshots) {
+  const providedPurpose = evidenceLine(form, 'overview');
+  if (providedPurpose && !isNoisyEvidenceText(providedPurpose)) return providedPurpose;
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.hasEvidence) {
+    const flowName = iflowFacts.iflowName || 'the SAP Integration Suite iFlow';
+    const systems = iflowFacts.sourceSystem || iflowFacts.targetSystem
+      ? ` from ${iflowFacts.sourceSystem || 'the source system'} to ${iflowFacts.targetSystem || 'the target system'}`
+      : '';
+    const flowActions = [
+      iflowFacts.adapters.length ? `uses ${iflowFacts.adapters.join(', ')}` : '',
+      iflowFacts.mappingSteps.length ? `maps/transforms payloads through ${iflowFacts.mappingSteps.slice(0, 4).join(', ')}` : '',
+      iflowFacts.authSteps.length ? 'obtains and applies receiver authorization' : '',
+      iflowFacts.exceptionSteps.length ? 'logs and routes exceptions through the configured exception subprocess' : ''
+    ].filter(Boolean).join('; ');
+    return `This technical specification documents ${flowName}, which processes integration messages${systems}. It explains the sender/receiver connectivity, iFlow processing steps, payload mapping, authorization handling, logging, monitoring, exception handling, test scope, and handover details required for developers and support teams.${flowActions ? ` Evidence indicates the iFlow ${flowActions}.` : ''}`;
+  }
+
+  const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
+  if (genericFacts.processSteps.length || genericFacts.title) {
+    return `This document explains the ${area.name} implementation derived from the supplied ${screenshots.length ? 'screenshot evidence' : 'code evidence'}. It captures the technical object or artifact, process flow, implementation behavior, testing scope, deployment/support considerations, risks, and handover information required for review and beta validation.`;
+  }
+
+  return `This document captures the technical specification for ${deriveDocumentTitle(form, area, screenshots)} using the supplied evidence.`;
+}
+
 function deriveSystemText(form, area, screenshots) {
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   const inferredSystems = uniqueItems([
@@ -1132,7 +1218,7 @@ function getEvidenceProfile(form, area, screenshots) {
   const codeSnippet = getActiveCodeSnippet(form);
   return {
     title: deriveDocumentTitle(form, area, screenshots),
-    overview: evidenceLine(form, 'overview'),
+    overview: derivePurposeText(form, area, screenshots),
     businessProcess: deriveBusinessProcessText(form, area, screenshots),
     configNotes: evidenceLine(form, 'configNotes'),
     testingNotes: evidenceLine(form, 'testingNotes'),
@@ -1319,6 +1405,20 @@ function buildImplementationSummary(form, area, screenshots) {
   const codeDetails = inferCodeDetails(evidenceText, area);
   const signals = detectCodeSignals(evidenceText, area);
   const evidence = collectEvidenceSummary(screenshots);
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.hasEvidence) {
+    return [
+      `This specification documents ${iflowFacts.iflowName || evidenceProfile.title} for ${area.name}.`,
+      iflowFacts.sourceSystem || iflowFacts.targetSystem ? `Integration direction: ${iflowFacts.sourceSystem || 'source system'} to ${iflowFacts.targetSystem || 'target system'}.` : '',
+      iflowFacts.adapters.length ? `Connectivity evidence: ${iflowFacts.adapters.join(', ')}.` : '',
+      iflowFacts.mainSteps.length ? `Main iFlow sequence: ${iflowFacts.mainSteps.join(' -> ')}.` : '',
+      iflowFacts.mappingSteps.length ? `Mapping/transformation sequence: ${iflowFacts.mappingSteps.join(' -> ')}.` : '',
+      iflowFacts.authSteps.length ? `Authorization sequence: ${iflowFacts.authSteps.join(' -> ')}.` : '',
+      iflowFacts.exceptionSteps.length ? `Exception handling evidence: ${iflowFacts.exceptionSteps.join(', ')}.` : '',
+      evidence.length ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : '',
+      safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
+    ].filter(Boolean);
+  }
   const summary = [
     `This specification documents ${evidenceProfile.title} for ${area.name}.`,
     evidenceProfile.sourceMode === 'screenshots' ? 'Primary evidence source: uploaded screenshot(s); code sections are omitted unless code is supplied separately.' : '',
@@ -2128,7 +2228,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
       docInfoTable([
         ['Type', shot.screenType],
         ['File', `${shot.name} (${formatBytes(shot.size)})`],
-        ['Visible text', safeLine(shot.extractedText)],
+        ['Readable evidence text', displayEvidenceText(shot.extractedText, 420)],
         ['Reviewer notes', safeLine(shot.note)]
       ])
     ]));
@@ -2202,7 +2302,8 @@ function getScreenshotObservations(shot, area, contextOverride) {
   if (shot.screenType) observations.push(`Screenshot type: ${shot.screenType}.`);
   if (safeLine(shot.caption)) observations.push(`Caption reviewed: ${safeLine(shot.caption)}.`);
   if (safeLine(shot.note)) observations.push(`Reviewer note: ${safeLine(shot.note)}.`);
-  if (safeLine(shot.extractedText)) observations.push(`Visible text captured: ${safeLine(shot.extractedText)}.`);
+  const readableText = displayEvidenceText(shot.extractedText, 220);
+  if (readableText) observations.push(`Readable screenshot text used as evidence: ${readableText}.`);
 
   if (iflowFacts?.hasEvidence) {
     if (iflowFacts.iflowName) observations.push(`iFlow identified: ${iflowFacts.iflowName}.`);
