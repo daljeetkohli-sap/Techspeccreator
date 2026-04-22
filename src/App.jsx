@@ -840,11 +840,23 @@ function cleanFlowLabel(value, fallback) {
     || fallback;
 }
 
-function buildTextFlowDiagram(steps) {
-  return steps
-    .filter(Boolean)
-    .map((step, index) => `[${index + 1}] ${cleanFlowLabel(step, `Step ${index + 1}`)}`)
-    .join('\n  -> ');
+function wrapSvgText(value, maxLength = 28) {
+  const words = cleanFlowLabel(value, 'Process step').split(' ');
+  const lines = [];
+  let current = '';
+
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLength && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+
+  if (current) lines.push(current);
+  return lines.slice(0, 3);
 }
 
 function buildMermaidFlowDiagram(steps) {
@@ -858,6 +870,134 @@ function buildMermaidFlowDiagram(steps) {
   const links = usableSteps.slice(1).map((_, index) => `  S${index + 1} --> S${index + 2}`);
 
   return ['```mermaid', 'flowchart TD', ...nodes, ...links, '```'].join('\n');
+}
+
+function buildFlowDiagramSvg(steps) {
+  const usableSteps = steps.filter(Boolean).slice(0, 12);
+  if (!usableSteps.length) return '';
+
+  const columnCount = Math.min(3, usableSteps.length);
+  const nodeWidth = 250;
+  const nodeHeight = 88;
+  const gapX = 62;
+  const gapY = 58;
+  const marginX = 36;
+  const marginTop = 84;
+  const rowCount = Math.ceil(usableSteps.length / columnCount);
+  const width = marginX * 2 + columnCount * nodeWidth + (columnCount - 1) * gapX;
+  const height = marginTop + rowCount * nodeHeight + (rowCount - 1) * gapY + 44;
+  const nodePosition = (index) => {
+    const row = Math.floor(index / columnCount);
+    const column = index % columnCount;
+    return {
+      x: marginX + column * (nodeWidth + gapX),
+      y: marginTop + row * (nodeHeight + gapY),
+      row,
+      column
+    };
+  };
+
+  const connectors = usableSteps.slice(1).map((_, index) => {
+    const from = nodePosition(index);
+    const to = nodePosition(index + 1);
+    const fromX = from.x + nodeWidth;
+    const fromY = from.y + nodeHeight / 2;
+    const toX = to.x;
+    const toY = to.y + nodeHeight / 2;
+
+    if (from.row === to.row) {
+      return `<path d="M ${fromX} ${fromY} H ${toX - 12}" fill="none" stroke="#167a5b" stroke-width="4" marker-end="url(#arrow)" />`;
+    }
+
+    const midY = from.y + nodeHeight + gapY / 2;
+    return `<path d="M ${from.x + nodeWidth / 2} ${from.y + nodeHeight} V ${midY} H ${to.x + nodeWidth / 2} V ${to.y - 12}" fill="none" stroke="#167a5b" stroke-width="4" marker-end="url(#arrow)" />`;
+  }).join('\n');
+
+  const nodes = usableSteps.map((step, index) => {
+    const { x, y } = nodePosition(index);
+    const isStart = index === 0;
+    const isEnd = index === usableSteps.length - 1;
+    const fill = isStart ? '#101820' : isEnd ? '#167a5b' : '#f3fbf7';
+    const stroke = isStart ? '#101820' : '#167a5b';
+    const textColor = isStart || isEnd ? '#ffffff' : '#101820';
+    const lines = wrapSvgText(step);
+    const textStartY = y + 34 - (lines.length - 1) * 9;
+
+    return [
+      `<rect x="${x}" y="${y}" width="${nodeWidth}" height="${nodeHeight}" rx="14" fill="${fill}" stroke="${stroke}" stroke-width="3" />`,
+      `<circle cx="${x + 26}" cy="${y + 26}" r="15" fill="${isStart || isEnd ? '#ffffff' : '#167a5b'}" opacity="${isStart || isEnd ? '0.95' : '1'}" />`,
+      `<text x="${x + 26}" y="${y + 31}" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="800" fill="${isStart || isEnd ? '#101820' : '#ffffff'}">${index + 1}</text>`,
+      ...lines.map((line, lineIndex) => `<text x="${x + 52}" y="${textStartY + lineIndex * 20}" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="${textColor}">${escapeHtml(line)}</text>`)
+    ].join('\n');
+  }).join('\n');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Technical process flow diagram">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#167a5b" />
+    </marker>
+  </defs>
+  <rect width="${width}" height="${height}" rx="18" fill="#ffffff" />
+  <rect x="18" y="18" width="${width - 36}" height="${height - 36}" rx="14" fill="#f7fbf9" stroke="#101820" stroke-width="2" />
+  <text x="36" y="52" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#101820">Technical Flow Diagram</text>
+  <text x="${width - 36}" y="52" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="800" fill="#167a5b">Generated from process evidence</text>
+  ${connectors}
+  ${nodes}
+</svg>`;
+}
+
+function svgToDataUrl(svg) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+async function svgToPngBytes(svg, width = 980, height = 430) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        canvas.toBlob(async (pngBlob) => {
+          URL.revokeObjectURL(url);
+          if (!pngBlob) {
+            reject(new Error('Could not render flow diagram fallback'));
+            return;
+          }
+          resolve(new Uint8Array(await pngBlob.arrayBuffer()));
+        }, 'image/png');
+      } catch (error) {
+        URL.revokeObjectURL(url);
+        reject(error);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not load flow diagram SVG'));
+    };
+    image.src = url;
+  });
+}
+
+async function createFlowDiagramAsset(steps) {
+  const svg = buildFlowDiagramSvg(steps);
+  if (!svg) return null;
+  const [, width = '980', height = '430'] = svg.match(/width="(\d+)" height="(\d+)"/) || [];
+
+  return {
+    svg,
+    width: Number(width),
+    height: Number(height),
+    svgBytes: new TextEncoder().encode(svg),
+    pngBytes: await svgToPngBytes(svg, Number(width), Number(height))
+  };
 }
 
 function buildProcessFlowContent(form, area, screenshots) {
@@ -1110,7 +1250,7 @@ function docInfoTable(rows) {
   });
 }
 
-function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
+function buildDocxDocument(form, area, screenshots, fairLogoBytes, flowDiagramAsset) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const templateRows = getTemplateMode(form) === 'upload'
     ? [
@@ -1190,7 +1330,28 @@ function buildDocxDocument(form, area, screenshots, fairLogoBytes) {
     ? [
       ...docNumbered(processFlowSteps),
       docHeading('Technical Flow Diagram', HeadingLevel.HEADING_3),
-      docCodeBlock(buildTextFlowDiagram(processFlowSteps))
+      flowDiagramAsset
+        ? new Paragraph({
+          children: [
+            new ImageRun({
+              type: 'svg',
+              data: flowDiagramAsset.svgBytes,
+              fallback: {
+                type: 'png',
+                data: flowDiagramAsset.pngBytes,
+                transformation: {
+                  width: 560,
+                  height: Math.round(560 * flowDiagramAsset.height / flowDiagramAsset.width)
+                }
+              },
+              transformation: {
+                width: 560,
+                height: Math.round(560 * flowDiagramAsset.height / flowDiagramAsset.width)
+              }
+            })
+          ]
+        })
+        : docParagraph('Technical flow diagram could not be rendered. Review the numbered process steps above.', { italics: true })
     ]
     : [];
 
@@ -1384,7 +1545,7 @@ function tableMarkdownToHtml(lines) {
   )).join('')}</tbody></table>`;
 }
 
-function markdownToConfluenceHtml(markdown) {
+function markdownToConfluenceHtml(markdown, flowDiagramSvg = '') {
   const lines = String(markdown || '').split('\n');
   const html = [];
   let paragraph = [];
@@ -1424,7 +1585,11 @@ function markdownToConfluenceHtml(markdown) {
     if (line.trim().startsWith('```')) {
       if (inCode) {
         const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
-        html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        if (codeLanguage === 'mermaid' && flowDiagramSvg) {
+          html.push(`<div class="technical-flow-diagram">${flowDiagramSvg}</div>`);
+        } else {
+          html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        }
         codeLines = [];
         inCode = false;
         codeLanguage = '';
@@ -1494,7 +1659,11 @@ function markdownToConfluenceHtml(markdown) {
 
   if (inCode) {
     const languageClass = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
-    html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    if (codeLanguage === 'mermaid' && flowDiagramSvg) {
+      html.push(`<div class="technical-flow-diagram">${flowDiagramSvg}</div>`);
+    } else {
+      html.push(`<pre><code${languageClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    }
   }
   flushOpenBlocks();
 
@@ -1515,6 +1684,14 @@ function App() {
   const generatedDoc = useMemo(
     () => buildDocumentation(form, selectedArea, screenshots),
     [form, selectedArea, screenshots]
+  );
+  const previewProcessFlowSteps = useMemo(
+    () => buildProcessFlowSteps(form, selectedArea, screenshots),
+    [form, selectedArea, screenshots]
+  );
+  const previewFlowDiagramSvg = useMemo(
+    () => buildFlowDiagramSvg(previewProcessFlowSteps),
+    [previewProcessFlowSteps]
   );
 
   const stats = useMemo(() => {
@@ -1704,7 +1881,7 @@ function App() {
 
   async function copyConfluenceDocumentation() {
     const textToCopy = generatedDoc || buildDocumentation(form, selectedArea, screenshots);
-    const htmlToCopy = markdownToConfluenceHtml(textToCopy);
+    const htmlToCopy = markdownToConfluenceHtml(textToCopy, previewFlowDiagramSvg);
     setActiveTab('preview');
 
     try {
@@ -1785,7 +1962,8 @@ function App() {
   async function exportWord() {
     const filename = buildTechSpecFilename(form.title);
     const fairLogoBytes = await loadFairLogoBytes();
-    const wordDocument = buildDocxDocument(form, selectedArea, screenshots, fairLogoBytes);
+    const flowDiagramAsset = await createFlowDiagramAsset(buildProcessFlowSteps(form, selectedArea, screenshots));
+    const wordDocument = buildDocxDocument(form, selectedArea, screenshots, fairLogoBytes, flowDiagramAsset);
     const wordBlob = await Packer.toBlob(wordDocument);
     setActiveTab('preview');
 
@@ -2216,6 +2394,15 @@ function App() {
                 </div>
               </div>
               {lastAction ? <div className="action-status" role="status">{lastAction}</div> : null}
+              {previewFlowDiagramSvg ? (
+                <div className="flow-diagram-preview" aria-label="Technical flow diagram preview">
+                  <div className="flow-diagram-preview-header">
+                    <strong>Technical Flow Diagram</strong>
+                    <span>Green and black flowchart generated from Process Flow</span>
+                  </div>
+                  <div dangerouslySetInnerHTML={{ __html: previewFlowDiagramSvg }} />
+                </div>
+              ) : null}
               <textarea className="markdown-output" value={generatedDoc} readOnly spellCheck="false" />
             </section>
           )}

@@ -134,7 +134,7 @@ It can identify whether a screenshot appears related to:
 
 The app prioritizes the user's Business Process description when creating Process Flow. If the user provides a real process narrative, the app converts that into process steps rather than generating a generic flow.
 
-The Process Flow section also includes a Technical Flow Diagram generated from the same steps. Preview and Confluence copy include a Mermaid `flowchart TD` block, while the Word export includes a readable numbered arrow flow so reviewers can see how the technical process runs end to end.
+The Process Flow section also includes a Technical Flow Diagram generated from the same steps. Preview, Confluence copy, and Word export include a proper green-and-black flowchart so reviewers can see how the technical process runs end to end.
 
 When code or evidence is supplied, it can also infer steps around:
 
@@ -165,7 +165,7 @@ The `.docx` output is intended to work in:
 
 ### Confluence Publishing
 
-The app includes a Copy for Confluence action that converts the generated Markdown-style preview into clipboard HTML for pasting into a Confluence page. The copied content is optimized for headings, tables, bullet lists, numbered process steps, Mermaid flowchart code blocks, and implementation code blocks.
+The app includes a Copy for Confluence action that converts the generated Markdown-style preview into clipboard HTML for pasting into a Confluence page. The copied content is optimized for headings, tables, bullet lists, numbered process steps, rendered technical flow diagrams, and implementation code blocks.
 
 For beta use, the recommended publishing model is:
 

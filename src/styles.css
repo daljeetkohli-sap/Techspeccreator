@@ -629,6 +629,35 @@ h1 {
   margin-top: 18px;
 }
 
+.flow-diagram-preview {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #101820;
+  border-radius: 8px;
+  background: #f7fbf9;
+  overflow-x: auto;
+}
+
+.flow-diagram-preview-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: #101820;
+}
+
+.flow-diagram-preview-header span {
+  color: #167a5b;
+  font-weight: 850;
+}
+
+.flow-diagram-preview svg {
+  display: block;
+  width: min(100%, 980px);
+  height: auto;
+}
+
 .markdown-output {
   min-height: 760px;
   white-space: pre;
