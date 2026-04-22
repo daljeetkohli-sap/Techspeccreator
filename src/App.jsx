@@ -164,6 +164,7 @@ const screenshotTypes = [
   'SAP Fiori / UI5 screen',
   'SAP BTP cockpit',
   'SAP Integration Suite monitor',
+  'SAP Integration Suite iFlow design',
   'Azure Logic Apps run',
   'SAP Commerce Backoffice / HAC',
   'Code review / IDE',
@@ -449,6 +450,48 @@ function createScreenshotRecord(file, dataUrl) {
   };
 }
 
+async function preprocessImageForOcr(dataUrl) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const scale = Math.max(2, Math.min(3.5, 2600 / Math.max(image.width || 1, image.height || 1)));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        if (!context) {
+          resolve(dataUrl);
+          return;
+        }
+
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const { data } = imageData;
+        for (let index = 0; index < data.length; index += 4) {
+          const gray = data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114;
+          const contrasted = Math.max(0, Math.min(255, (gray - 128) * 1.75 + 128));
+          const value = contrasted > 210 ? 255 : contrasted < 125 ? 0 : contrasted;
+          data[index] = value;
+          data[index + 1] = value;
+          data[index + 2] = value;
+        }
+        context.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
 function cleanOcrText(value) {
   return String(value || '')
     .replace(/\r/g, '\n')
@@ -614,6 +657,10 @@ function humanizeArtifactName(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isWeakScreenshotDefault(value) {
+  return /^(image|screenshot|screen shot|capture|untitled)(?:\s+\d+)?$/i.test(safeLine(value));
+}
+
 function buildTechSpecFilename(title, version) {
   const versionPart = safeLine(version) ? `_v${slugify(version)}` : '';
   return `TechSpec_${slugify(title)}${versionPart}.docx`;
@@ -656,6 +703,196 @@ function extractMatches(text, patterns) {
     }
   });
   return [...new Set(values)].slice(0, 12);
+}
+
+function uniqueItems(values) {
+  return values
+    .map(safeLine)
+    .filter(Boolean)
+    .filter((value, index, list) => list.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index);
+}
+
+function normalizeIflowText(value) {
+  return safeLine(value)
+    .replace(/[|]/g, ' ')
+    .replace(/\s*[_-]\s*/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function includesAny(value, labels) {
+  const lower = value.toLowerCase();
+  return labels.some((label) => lower.includes(label.toLowerCase()));
+}
+
+function extractKnownLabels(context, labels) {
+  return labels.filter((label) => includesAny(context, [label]));
+}
+
+function inferSystemsFromIflowName(name, context) {
+  const systems = { source: '', target: '' };
+  const match = safeLine(name).match(/_([A-Za-z0-9]+)_to_([A-Za-z0-9]+)/i);
+  if (match) {
+    systems.source = match[1].replace(/^SAP/i, 'SAP ');
+    systems.target = match[2];
+  }
+  if (!systems.source && /sap\s*ecc|sapecc/i.test(context)) systems.source = 'SAP ECC';
+  if (!systems.target && /fareye|far eye/i.test(context)) systems.target = 'FarEye';
+  return systems;
+}
+
+function extractIntegrationFlowFacts(form, screenshots) {
+  const context = normalizeIflowText([
+    form?.title,
+    form?.businessProcess,
+    form?.overview,
+    form?.system,
+    form?.codeSnippet,
+    ...screenshots.flatMap((shot) => [shot.name, shot.caption, shot.screenType, shot.extractedText, shot.note])
+  ].join(' '));
+  const hasIflowSignal = /iflow|integration suite|integration process|exception subprocess|amqp|far\s*eye|fareye|content modifier|message mapping|json to xml|xml to json|set standard headers|consignment_create/i.test(context);
+  if (!hasIflowSignal) {
+    return {
+      hasEvidence: false,
+      context: '',
+      iflowName: '',
+      packageName: '',
+      deploymentStatus: '',
+      runtimeStatus: '',
+      sourceSystem: '',
+      targetSystem: '',
+      adapters: [],
+      mainSteps: [],
+      authSteps: [],
+      mappingSteps: [],
+      exceptionSteps: [],
+      processSteps: [],
+      diagramSteps: []
+    };
+  }
+
+  const iflowCandidates = extractMatches(context, [
+    /\b([A-Za-z0-9]+_create_[A-Za-z0-9_]+_to_[A-Za-z0-9_]+)\b/gi,
+    /\b([A-Za-z0-9]+_[A-Za-z0-9]+_SAPECC_to_[A-Za-z0-9_]+)\b/gi,
+    /\b([A-Za-z0-9]+_SAPECC_to_[A-Za-z0-9_]+)\b/gi,
+    /\b([A-Za-z0-9]+_[A-Za-z0-9]+_to_[A-Za-z0-9_]+)\b/gi
+  ]);
+  const packageCandidates = extractMatches(context, [
+    /\b(DeliveryVisibility[A-Za-z0-9_]*IntegrationDEV)\b/gi,
+    /\b([A-Za-z0-9_]*Integration(?:DEV|QAS|PRD|PROD)?)\b/gi
+  ]);
+  const deploymentCandidates = extractMatches(context, [
+    /Deployment Status:\s*([^,]+,\s*[^,]+,\s*[^,]+|[^R]+?)(?=\s+Runtime Status|\s+Started|\s*$)/gi,
+    /(Deployed on\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}[^R]*)/gi
+  ]);
+  const runtimeCandidates = extractMatches(context, [/Runtime Status:\s*(Started|Stopped|Failed|Error|Undeployed)/gi]);
+  const iflowName = iflowCandidates[0] || '';
+  const systems = inferSystemsFromIflowName(iflowName, context);
+  const adapters = uniqueItems([
+    /amqp/i.test(context) ? 'AMQP sender adapter' : '',
+    /http/i.test(context) ? 'HTTP receiver/auth call' : '',
+    /sender/i.test(context) ? 'Sender participant captured in iFlow' : '',
+    /fareye|far eye/i.test(context) ? 'FarEye receiver endpoint' : ''
+  ]);
+  const mainSteps = extractKnownLabels(context, [
+    'Set Standard Headers',
+    'Log Payload',
+    'Map to FarEye',
+    'Get Authorisation',
+    'Get Authorization',
+    'Set Log Attachment',
+    'Post to FarEye'
+  ]);
+  const authSteps = extractKnownLabels(context, [
+    'Set Client ID + Secret',
+    'Set Client ID Secret',
+    'Set Auth Base64',
+    'Get Access Token',
+    'Set Auth'
+  ]);
+  const mappingSteps = extractKnownLabels(context, [
+    'JSON to XML Converter 1',
+    'JSON to XML Converter',
+    'MM_ECC_to_FarEye',
+    'Set Application ID',
+    'XML to JSON Converter 1',
+    'XML to JSON Converter',
+    'Normalize Payload',
+    'Persist Data'
+  ]);
+  const exceptionSteps = uniqueItems([
+    /exception subprocess/i.test(context) ? 'Exception subprocess is present' : '',
+    /log error message/i.test(context) ? 'Log Error Message' : '',
+    /error start/i.test(context) ? 'Error Start event' : '',
+    /error end/i.test(context) ? 'Error End event' : ''
+  ]);
+  const source = systems.source || 'source system';
+  const target = systems.target || 'target system';
+  const processSteps = uniqueItems([
+    systems.source || /sender/i.test(context) ? `Receive consignment message from ${source} using AMQP` : '',
+    mainSteps.includes('Set Standard Headers') ? 'Set standard message headers' : '',
+    mainSteps.includes('Log Payload') ? 'Log inbound payload for traceability' : '',
+    includesAny(context, ['Map to FarEye']) ? 'Call the Map to FarEye subprocess' : '',
+    includesAny(context, ['JSON to XML Converter']) ? 'Convert JSON payload to XML for mapping' : '',
+    includesAny(context, ['MM_ECC_to_FarEye']) ? 'Map SAP ECC structure to FarEye payload using MM_ECC_to_FarEye' : '',
+    includesAny(context, ['Set Application ID']) ? 'Set FarEye application identifier' : '',
+    includesAny(context, ['XML to JSON Converter']) ? 'Convert mapped XML payload back to JSON' : '',
+    includesAny(context, ['Normalize Payload']) ? 'Normalize the outbound payload' : '',
+    includesAny(context, ['Persist Data']) ? 'Persist mapped payload or processing state' : '',
+    includesAny(context, ['Get Authorisation', 'Get Authorization']) ? 'Call the authorization subprocess for FarEye access token' : '',
+    includesAny(context, ['Set Client ID + Secret', 'Set Client ID Secret']) ? 'Prepare FarEye client ID and secret' : '',
+    includesAny(context, ['Set Auth Base64']) ? 'Encode authorization value in Base64' : '',
+    includesAny(context, ['Get Access Token']) ? 'Retrieve FarEye access token over HTTP' : '',
+    includesAny(context, ['Set Auth']) ? 'Set authorization header/property for the receiver call' : '',
+    mainSteps.includes('Set Log Attachment') ? 'Attach log metadata or payload evidence' : '',
+    mainSteps.filter((step) => step === 'Log Payload').length > 1 ? 'Log outbound payload before receiver call' : '',
+    includesAny(context, ['Post to FarEye']) ? `Post consignment payload to ${target} using HTTP` : '',
+    exceptionSteps.length ? 'Route technical failures to exception subprocess and log error message' : ''
+  ]);
+  const diagramSteps = uniqueItems([
+    systems.source || /amqp|sender/i.test(context) ? `${source} AMQP message` : '',
+    mainSteps.includes('Set Standard Headers') ? 'Set headers' : '',
+    mainSteps.includes('Log Payload') ? 'Log inbound payload' : '',
+    includesAny(context, ['Map to FarEye']) ? 'Map to FarEye subprocess' : '',
+    includesAny(context, ['JSON to XML Converter']) ? 'JSON to XML' : '',
+    includesAny(context, ['MM_ECC_to_FarEye']) ? 'MM_ECC_to_FarEye mapping' : '',
+    includesAny(context, ['XML to JSON Converter']) ? 'XML to JSON' : '',
+    includesAny(context, ['Normalize Payload']) ? 'Normalize payload' : '',
+    includesAny(context, ['Persist Data']) ? 'Persist data' : '',
+    includesAny(context, ['Get Authorisation', 'Get Authorization']) ? 'Get FarEye auth token' : '',
+    includesAny(context, ['Set Log Attachment']) ? 'Set log attachment' : '',
+    includesAny(context, ['Post to FarEye']) ? 'Post to FarEye over HTTP' : '',
+    exceptionSteps.length ? 'Log error message on exception' : ''
+  ]);
+  const hasConcreteEvidence = Boolean(
+    iflowName ||
+    packageCandidates.length ||
+    deploymentCandidates.length ||
+    runtimeCandidates.length ||
+    adapters.length ||
+    mainSteps.length ||
+    authSteps.length ||
+    mappingSteps.length ||
+    exceptionSteps.length
+  );
+
+  return {
+    hasEvidence: hasConcreteEvidence,
+    context,
+    iflowName,
+    packageName: packageCandidates[0] || '',
+    deploymentStatus: deploymentCandidates[0] || '',
+    runtimeStatus: runtimeCandidates[0] || '',
+    sourceSystem: systems.source,
+    targetSystem: systems.target,
+    adapters,
+    mainSteps: uniqueItems(mainSteps),
+    authSteps: uniqueItems(authSteps),
+    mappingSteps: uniqueItems(mappingSteps),
+    exceptionSteps,
+    processSteps,
+    diagramSteps
+  };
 }
 
 function inferCodeDetails(code, area) {
@@ -714,17 +951,33 @@ function getActiveCodeSnippet(form) {
 }
 
 function deriveDocumentTitle(form, area, screenshots) {
-  if (evidenceLine(form, 'title')) return evidenceLine(form, 'title');
+  const providedTitle = evidenceLine(form, 'title');
+  if (providedTitle && !isWeakScreenshotDefault(providedTitle)) return providedTitle;
   if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
   const codeDetails = inferCodeDetails(getActiveCodeSnippet(form), area);
   if (codeDetails.objects.length) return humanizeArtifactName(codeDetails.objects[0]);
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.iflowName) return iflowFacts.iflowName;
+  if (providedTitle) return providedTitle;
   const firstScreenshot = screenshots[0];
   if (firstScreenshot) return humanizeArtifactName(firstScreenshot.caption || firstScreenshot.name);
   return `${area.name} Technical Specification`;
 }
 
 function deriveBusinessProcessText(form, area, screenshots) {
-  if (evidenceLine(form, 'businessProcess')) return evidenceLine(form, 'businessProcess');
+  const providedProcess = evidenceLine(form, 'businessProcess');
+  if (providedProcess && !isWeakScreenshotDefault(providedProcess)) return providedProcess;
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.processSteps?.length) {
+    const summary = [
+      iflowFacts.iflowName ? `iFlow ${iflowFacts.iflowName}` : 'SAP Integration Suite iFlow',
+      iflowFacts.sourceSystem || iflowFacts.targetSystem ? `moves consignment data from ${iflowFacts.sourceSystem || 'the source system'} to ${iflowFacts.targetSystem || 'the target system'}` : 'orchestrates the integration process',
+      iflowFacts.deploymentStatus ? `deployment evidence: ${iflowFacts.deploymentStatus}` : '',
+      iflowFacts.runtimeStatus ? `runtime status: ${iflowFacts.runtimeStatus}` : ''
+    ].filter(Boolean).join('; ');
+    return `${summary}. Process evidence: ${iflowFacts.processSteps.slice(0, 10).join(' -> ')}.`;
+  }
+  if (providedProcess) return providedProcess;
   const screenshotText = screenshots
     .map((shot, index) => {
       const parts = [
@@ -776,6 +1029,7 @@ function getEvidenceProfile(form, area, screenshots) {
 function areaSpecificDetails(area, codeDetails, screenshots) {
   const evidence = collectEvidenceSummary(screenshots);
   const objectText = codeDetails.objects.length ? codeDetails.objects.join(', ') : 'objects to be confirmed from repository/package';
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(null, screenshots) : null;
   const base = {
     'sap-abap': {
       'ABAP object inventory': [`ABAP objects identified or referenced: ${objectText}.`, 'Document object type, package, transport, activation status, and runtime entry point.', 'Confirm whether objects are custom Z/Y objects or extensions to standard SAP behavior.'],
@@ -787,12 +1041,43 @@ function areaSpecificDetails(area, codeDetails, screenshots) {
       'Transport and deployment': ['Document transport request, package, dependencies, activation sequence, retrofit needs, and post-import validation.']
     },
     'sap-integration': {
-      'Integration scenario': [...codeDetails.integrations, ...codeDetails.operations, ...(evidence.length ? [`Evidence reviewed: ${evidence[0]}`] : [])],
-      'Sender and receiver adapters': ['Document sender and receiver adapters, protocol, endpoint, authentication, timeout, and quality-of-service settings.'],
-      'Message mapping and transformation': [...codeDetails.operations, 'Map source fields to SAP target fields and call out mandatory transformations, value mappings, Groovy scripts, and content modifiers.'],
-      'Security material': [...codeDetails.security, 'Document credential alias, destination, certificate, OAuth client, key pair, or key vault dependency.'],
-      'Exception subprocess and retry': [...codeDetails.errors, 'Document exception subprocess, retry count, idempotency, duplicate handling, alerting, and manual reprocess path.'],
-      'Monitoring and reprocessing': ['Document message monitor location, correlation/message ID, alerting, and reprocess approach.', ...evidence.slice(0, 2)]
+      'Integration scenario': [
+        iflowFacts?.iflowName ? `iFlow identified from screenshot: ${iflowFacts.iflowName}.` : '',
+        iflowFacts?.packageName ? `Package/environment evidence: ${iflowFacts.packageName}.` : '',
+        iflowFacts?.sourceSystem || iflowFacts?.targetSystem ? `Business data direction: ${iflowFacts.sourceSystem || 'source system'} to ${iflowFacts.targetSystem || 'target system'}.` : '',
+        iflowFacts?.deploymentStatus ? `Deployment status captured: ${iflowFacts.deploymentStatus}.` : '',
+        iflowFacts?.runtimeStatus ? `Runtime status captured: ${iflowFacts.runtimeStatus}.` : '',
+        ...codeDetails.integrations,
+        ...codeDetails.operations,
+        ...(evidence.length ? [`Evidence reviewed: ${evidence[0]}`] : [])
+      ],
+      'Sender and receiver adapters': [
+        ...(iflowFacts?.adapters || []),
+        iflowFacts?.sourceSystem ? `Sender/source system: ${iflowFacts.sourceSystem}.` : '',
+        iflowFacts?.targetSystem ? `Receiver/target endpoint: ${iflowFacts.targetSystem}.` : '',
+        'Confirm endpoint URLs, credential aliases, timeout, QoS, retry, and connectivity route for each adapter.'
+      ],
+      'Message mapping and transformation': [
+        ...(iflowFacts?.mappingSteps || []).map((step) => `Mapping step identified: ${step}.`),
+        ...(iflowFacts?.mainSteps || []).filter((step) => /map|payload|attachment/i.test(step)).map((step) => `Main process step identified: ${step}.`),
+        ...codeDetails.operations,
+        'Document source-to-target field mapping, mandatory values, payload normalization, and any Groovy/content modifier behavior.'
+      ],
+      'Security material': [
+        ...(iflowFacts?.authSteps || []).map((step) => `Authorization subprocess step identified: ${step}.`),
+        ...codeDetails.security,
+        'Document FarEye/API credential alias, OAuth/client-secret owner, certificate or destination dependency, and rotation process.'
+      ],
+      'Exception subprocess and retry': [
+        ...(iflowFacts?.exceptionSteps || []).map((step) => `Exception handling evidence: ${step}.`),
+        ...codeDetails.errors,
+        'Document retry count, idempotency, duplicate handling, alerting, and manual reprocess path.'
+      ],
+      'Monitoring and reprocessing': [
+        ...(iflowFacts?.mainSteps || []).filter((step) => /log/i.test(step)).map((step) => `Monitoring/logging step identified: ${step}.`),
+        'Document message monitor location, MPL/correlation/message ID, payload visibility, alerting, and reprocess approach.',
+        ...evidence.slice(0, 2)
+      ]
     },
     'sap-btp-fiori': {
       'Fiori app intent and navigation': ['Document semantic object/action, launchpad tile, target mapping, inbound/outbound navigation, and primary user action.'],
@@ -936,6 +1221,10 @@ function extractBusinessProcessSteps(value) {
 
 function buildProcessFlowSteps(form, area, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.processSteps?.length) {
+    return iflowFacts.processSteps.slice(0, 18);
+  }
   const describedSteps = extractBusinessProcessSteps(evidenceProfile.businessProcess);
   if (describedSteps.length) {
     return describedSteps;
@@ -1016,6 +1305,8 @@ function splitDetailedFlowSteps(values) {
 
 function buildTechnicalDiagramSteps(form, area, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
+  if (iflowFacts?.diagramSteps?.length >= 3) return iflowFacts.diagramSteps.slice(0, 16);
   const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(evidenceProfile.businessProcess));
   if (describedSteps.length >= 3) return describedSteps.slice(0, 16);
 
@@ -1765,11 +2056,23 @@ function buildScreenshotUnderstanding(shot, area, index) {
 function getScreenshotObservations(shot, area, contextOverride) {
   const context = contextOverride ?? [shot.caption, shot.note, shot.extractedText, shot.name, shot.screenType].map(safeLine).join(' ').toLowerCase();
   const observations = [];
+  const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(null, [shot]) : null;
 
   if (shot.screenType) observations.push(`Screenshot type: ${shot.screenType}.`);
   if (safeLine(shot.caption)) observations.push(`Caption reviewed: ${safeLine(shot.caption)}.`);
   if (safeLine(shot.note)) observations.push(`Reviewer note: ${safeLine(shot.note)}.`);
   if (safeLine(shot.extractedText)) observations.push(`Visible text captured: ${safeLine(shot.extractedText)}.`);
+
+  if (iflowFacts?.hasEvidence) {
+    if (iflowFacts.iflowName) observations.push(`iFlow identified: ${iflowFacts.iflowName}.`);
+    if (iflowFacts.sourceSystem || iflowFacts.targetSystem) observations.push(`Integration direction: ${iflowFacts.sourceSystem || 'source system'} to ${iflowFacts.targetSystem || 'target system'}.`);
+    if (iflowFacts.adapters.length) observations.push(`Adapters/endpoints inferred: ${iflowFacts.adapters.join(', ')}.`);
+    if (iflowFacts.mainSteps.length) observations.push(`Main process steps visible: ${iflowFacts.mainSteps.join(' -> ')}.`);
+    if (iflowFacts.authSteps.length) observations.push(`Authorization subprocess visible: ${iflowFacts.authSteps.join(' -> ')}.`);
+    if (iflowFacts.mappingSteps.length) observations.push(`Mapping subprocess visible: ${iflowFacts.mappingSteps.join(' -> ')}.`);
+    if (iflowFacts.exceptionSteps.length) observations.push(`Exception handling visible: ${iflowFacts.exceptionSteps.join(', ')}.`);
+    return observations;
+  }
 
   if (/error|failed|exception|dump|red|invalid|unauthori[sz]ed|timeout/.test(context)) {
     observations.push('Technical interpretation: evidence appears to include an error or failure path; document root cause, retry/reprocess steps, and support ownership.');
@@ -2122,11 +2425,15 @@ function App() {
       const records = await Promise.all(
         imageFiles.map(async (file) => createScreenshotRecord(file, await readFileAsDataUrl(file)))
       );
-      setScreenshots((current) => [...current, ...records]);
+      const typedRecords = records.map((record) => ({
+        ...record,
+        screenType: selectedArea.id === 'sap-integration' ? 'SAP Integration Suite iFlow design' : record.screenType
+      }));
+      setScreenshots((current) => [...current, ...typedRecords]);
       setForm((current) => ({
         ...current,
-        title: evidenceLine(current, 'title') ? current.title : humanizeArtifactName(records[0]?.caption || records[0]?.name),
-        businessProcess: evidenceLine(current, 'businessProcess') ? current.businessProcess : records.map((record) => humanizeArtifactName(record.caption || record.name)).join(' -> '),
+        title: evidenceLine(current, 'title') && !isWeakScreenshotDefault(current.title) ? current.title : humanizeArtifactName(typedRecords[0]?.caption || typedRecords[0]?.name),
+        businessProcess: evidenceLine(current, 'businessProcess') && !isWeakScreenshotDefault(current.businessProcess) ? current.businessProcess : typedRecords.map((record) => humanizeArtifactName(record.caption || record.name)).join(' -> '),
         codeSnippet: '',
         codeFileName: '',
         codeFileType: ''
@@ -2203,7 +2510,9 @@ function App() {
       });
       await worker.setParameters({ preserve_interword_spaces: '1' });
 
-      const result = await worker.recognize(shot.dataUrl);
+      setOcrStatus('Enhancing screenshot for OCR');
+      const imageForOcr = await preprocessImageForOcr(shot.dataUrl);
+      const result = await worker.recognize(imageForOcr);
       const text = cleanOcrText(result?.data?.text);
 
       if (!text) {
@@ -2222,6 +2531,24 @@ function App() {
           };
         })
       );
+      if (selectedArea.id === 'sap-integration') {
+        const enrichedShot = {
+          ...shot,
+          extractedText: shot.extractedText ? `${shot.extractedText}\n\n${text}` : text,
+          screenType: shot.screenType || 'SAP Integration Suite iFlow design'
+        };
+        const iflowFacts = extractIntegrationFlowFacts(form, [enrichedShot]);
+        if (iflowFacts.hasEvidence) {
+          setForm((current) => ({
+            ...current,
+            title: iflowFacts.iflowName && (!evidenceLine(current, 'title') || isWeakScreenshotDefault(current.title)) ? iflowFacts.iflowName : current.title,
+            system: [iflowFacts.sourceSystem, iflowFacts.targetSystem].filter(Boolean).join(', ') || current.system,
+            businessProcess: iflowFacts.processSteps.length && (!evidenceLine(current, 'businessProcess') || isWeakScreenshotDefault(current.businessProcess))
+              ? iflowFacts.processSteps.join(' -> ')
+              : current.businessProcess
+          }));
+        }
+      }
       const languageName = ocrLanguages.find((item) => item.id === language)?.name || language;
       setLastAction(`OCR extracted ${text.length.toLocaleString()} characters from ${shot.name} using ${languageName}. Review the visible text field, then click Review image or Download Word.`);
       showToast('OCR text extracted');
