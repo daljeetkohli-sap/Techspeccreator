@@ -2948,6 +2948,66 @@ function buildReadinessGaps(form, area, screenshots) {
   return gaps;
 }
 
+function buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots) {
+  const hasContext = Boolean(
+    safeLine(form.jiraContext) ||
+    safeLine(form.designContext) ||
+    safeLine(form.architectureContext) ||
+    safeLine(form.decisionContext) ||
+    safeLine(form.apiContext)
+  );
+  const hasTemplateChoice = Boolean(form.templateMode);
+  const hasReviewedScreenshot = screenshots.some((shot) => safeLine(shot.note) || safeLine(shot.extractedText));
+  const hasGovernance = Boolean(safeLine(form.owner) || safeLine(form.documentVersion) || safeLine(form.revisionSummary));
+
+  return [
+    {
+      title: 'Choose solution area',
+      detail: 'Pick the SAP or cloud area first so the app loads the right sections, testing focus, and checklist.',
+      complete: areaReady
+    },
+    {
+      title: 'Select document format',
+      detail: 'Choose Technical Spec, Functional Spec, Support Runbook, or Handover Pack.',
+      complete: areaReady && safeLine(form.format)
+    },
+    {
+      title: 'Add project context',
+      detail: 'Paste Jira/story details, import Jira, or add HLD, architecture, decision, mapping, or API notes.',
+      complete: hasContext,
+      optional: true
+    },
+    {
+      title: 'Add implementation evidence',
+      detail: 'Paste or attach code, upload screenshots, or use both when you need code detail plus visual proof.',
+      complete: evidenceReady
+    },
+    {
+      title: 'Review extracted evidence',
+      detail: 'Run OCR/review on screenshots and correct visible text so the generated sections are evidence-based.',
+      complete: !screenshots.length || hasReviewedScreenshot,
+      optional: !screenshots.length
+    },
+    {
+      title: 'Add governance details',
+      detail: 'Fill owner, version, revision notes, risks, testing notes, mapping sheet, and customer logo where relevant.',
+      complete: hasGovernance,
+      optional: true
+    },
+    {
+      title: 'Preview and validate',
+      detail: 'Open Preview and check name, purpose, process flow, technical flow diagram, testing, support, and approvals.',
+      complete: areaReady && evidenceReady
+    },
+    {
+      title: 'Export or publish',
+      detail: 'Download Word for handover, copy for Confluence, or copy text for review.',
+      complete: false,
+      optional: true
+    }
+  ];
+}
+
 function App() {
   const savedWorkspace = loadSavedWorkspace();
   const [form, setForm] = useState(savedWorkspace?.form ?? initialForm);
@@ -2982,6 +3042,7 @@ function App() {
   const derivedDocumentTitle = areaReady && evidenceReady ? deriveDocumentTitle(form, displayArea, screenshots) : '';
   const derivedBusinessProcess = areaReady && evidenceReady ? deriveBusinessProcessText(form, displayArea, screenshots) : '';
   const readinessGaps = buildReadinessGaps(form, displayArea, screenshots);
+  const walkthroughSteps = buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots);
   const evidenceMode = safeLine(form.codeSnippet) || safeLine(form.codeFileName)
     ? screenshots.length ? 'Code and screenshot evidence' : 'Code evidence'
     : screenshots.length
@@ -3551,6 +3612,24 @@ function App() {
                 <li key={gap}>{gap}</li>
               )) : <li>Ready to preview, copy, export Word, or copy for Confluence.</li>}
             </ul>
+          </div>
+
+          <div className="walkthrough-panel">
+            <div className="walkthrough-heading">
+              <strong>Walk Me Through</strong>
+              <span>End-user steps</span>
+            </div>
+            <ol>
+              {walkthroughSteps.map((step, index) => (
+                <li key={step.title} className={step.complete ? 'done' : ''}>
+                  <span className="walkthrough-number">{index + 1}</span>
+                  <div>
+                    <strong>{step.title}{step.optional ? ' (optional)' : ''}</strong>
+                    <p>{step.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
 
           <div className="area-sections">

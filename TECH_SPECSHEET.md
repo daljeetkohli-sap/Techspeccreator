@@ -24,6 +24,7 @@ The app has been checked against the requested beta behavior:
 | Document name should be derived from evidence | Implemented. The app derives title from code filename, detected code object, CPI/iFlow name, or screenshot caption/evidence before falling back. |
 | Most content should come from code/screenshot | Implemented and improved. Process flow, technical design, screenshot interpretation, code understanding, and testing focus are evidence-driven. Manual notes are supporting context. |
 | Generated specs should use wider project context | Implemented for MVP. The app accepts manual context and can optionally import Jira Cloud issue context through a local read-only backend, then includes Jira/work item context, design/HLD notes, architecture references, meeting decisions, and API/mapping details in generated summaries and a Project Context section. |
+| End users should be guided through the flow | Implemented. The app includes a Walk Me Through panel with step-by-step guidance and completion indicators for area selection, format, context, evidence, screenshot review, governance details, preview, and export. |
 | SAP Commerce specs should not contain unrelated ABAP/CAP references | Improved. Commerce generation now prioritizes OCC/API entry points, facade/service paths, Commerce model access, DTO mapping, null checks, exception paths, impex/type-system, Backoffice/HAC, and system-update context. |
 | No hardcoded sample content in beta flow | Implemented. Active sample defaults were removed and migrated away from saved local state. |
 | Screenshots from any supported area should be understood | Improved. The app now treats OCR text, screenshot captions, and reviewer notes as implementation evidence across ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, SAP Commerce, RAP, BW/Datasphere, and MDG. CPI/iFlow has an additional specialized extractor. |
@@ -34,6 +35,23 @@ The app has been checked against the requested beta behavior:
 | SAP Integration/CPI specs should capture mapping sheet references | Implemented. CPI documents now include a Mapping Sheet section and metadata placeholder for an Excel file, SharePoint link, Google Drive link, or repository reference. |
 
 ## Current Capabilities
+
+### Living Specsheet
+
+This file is the product tech specsheet for TechDoc Studio. It should be updated with every meaningful feature commit so developers and beta testers can see what the app can do now, what changed recently, and what is planned next.
+
+Recent feature commits:
+
+| Commit | Feature update |
+| --- | --- |
+| 939f57c | Added optional Jira Cloud context import through a local read-only backend. |
+| 21e5812 | Added context-driven generation fields and Project Context output. |
+| bf7767a | Fixed SAP Commerce evidence handling, combined code plus screenshots, and Commerce-specific code understanding. |
+| fa3d7e9 | Improved consultant-ready spec generation, including CPI mapping sheet references and less overconfident evidence wording. |
+| 543bb54 | Grouped iFlow technical diagram steps for clearer CPI flow diagrams. |
+| d93d01e | Cleaned iFlow evidence derivation and reduced unclear/generic generated text. |
+| d0f7b0c | Generalized screenshot evidence understanding across non-CPI solution areas. |
+| 811d269 | Required evidence-driven document intake and improved generation gating. |
 
 ### Evidence-First Intake
 
@@ -49,7 +67,7 @@ The app now guides users in this order:
 5. Add project context such as Jira stories, HLD/design notes, architecture references, meeting decisions, and API/mapping details.
 6. Preview, copy for Confluence, or download Word.
 
-The app displays readiness checks when required inputs are missing. Example checks include:
+The app displays a Walk Me Through checklist so end users can follow the intended sequence without separate training material. It also displays readiness checks when required inputs are missing. Example checks include:
 
 - Solution area must be selected.
 - Provide code, screenshot evidence, or both.
@@ -392,6 +410,7 @@ Beta testing should validate:
 - Code snippets produce meaningful object/process/technical sections.
 - Missing input sections are skipped instead of called out.
 - Readiness checks are useful and not annoying.
+- Walk Me Through gives clear end-user steps and updates completion indicators as users progress.
 - Word export opens correctly in Word and Google Docs.
 - Confluence copy pastes cleanly.
 - Project context from Jira/story notes, design/HLD references, architecture notes, decisions, mappings, and API details appears in the generated document without overriding stronger code or screenshot evidence.
@@ -416,6 +435,17 @@ Beta testing should validate:
 
 ## Roadmap
 
+### Planned Release Themes
+
+| Release theme | Planned capabilities |
+| --- | --- |
+| Beta UX hardening | Richer Walk Me Through actions, section jump links, contextual examples by solution area, export quality score, and confidence labels. |
+| Context integrations | Jira import hardening, Azure Boards import, Confluence page import, SharePoint/Google Drive design document links, and mapping/API reference import. |
+| Evidence intelligence | Better OCR, AI-assisted screenshot interpretation, code explanation, process flow extraction, screenshot annotation, and redaction. |
+| Artifact import | CPI iFlow XML import, Logic App JSON import, CAP project files, UI5 manifests, Commerce extension/config imports, and ABAP object metadata import. |
+| Team workspace | User roles, shared document library, version history, review comments, approval workflow, and customer template library. |
+| Publishing and governance | Direct Confluence publishing, SharePoint/Drive storage, spec freshness checks, release evidence checklist, and audit-ready handover packs. |
+
 ### Phase 1: Strong Beta-Ready Local Tool
 
 Goal: make the current app reliable enough for controlled beta testing.
@@ -431,10 +461,12 @@ Completed or mostly completed:
 - Confluence-ready copy.
 - Generic ABC Consulting branding and optional customer logo.
 - Readiness/gap checks before export.
+- Walk Me Through end-user checklist.
 
 Next improvements:
 
 - Add a visible quality score before export.
+- Add richer walkthrough actions such as jumping to the relevant section and showing contextual examples by solution area.
 - Add evidence confidence labels, such as Confirmed, Inferred, Needs Review.
 - Improve wording for each solution area using real beta examples.
 - Improve document preview so it looks closer to the final Word document.

@@ -5,6 +5,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 ## What It Does
 
 - Provides solution-area presets for SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori apps, SAP CAP apps, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
+- Shows a **Walk Me Through** end-user checklist inside the app so consultants know the recommended step-by-step flow from area selection through export.
 - Changes the checklist and technical design sections dynamically by solution area, so ABAP, Fiori, CAP, Integration, Commerce, and other SAP areas get different document sections.
 - Generates core technical-spec headers such as purpose, implementation summary, process flow with a compact green-and-black technical flowchart diagram, business process, template alignment, checklist, technical design, configuration, testing, deployment, monitoring/support, risks, and approval handover.
 - Adds code and screenshot sections only when those artifacts are supplied.

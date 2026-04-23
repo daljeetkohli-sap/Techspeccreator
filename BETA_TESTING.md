@@ -32,6 +32,7 @@ npm run build
 ## Suggested Beta Test Areas
 
 - Confirm all solution area presets render correctly: SAP ABAP, SAP Integration Suite/CPI, SAP BTP Fiori, SAP CAP, Azure Logic Apps, SAP Spartacus, SAP Commerce Cloud, SAP RAP, SAP BW/Datasphere, and SAP MDG.
+- Confirm the Walk Me Through panel shows end-user steps, marks completed steps as users choose area/add evidence/add context, and remains readable on desktop and mobile.
 - Switch between SAP ABAP and SAP BTP Fiori and verify the section list changes. ABAP should show backend-focused sections like ABAP object inventory, data access, performance, error handling, and transport; Fiori should show UI/UX, Fiori Elements annotations, UI5 components, OData/service binding, launchpad, roles, and accessibility.
 - Switch through every solution area and verify checklist rows, technical design guidance, testing focus, risks, and support notes are specific to that area rather than generic.
 - Generate a document for each solution area and confirm the core populated headers are consistent: Purpose, Generated Implementation Summary, Revision History, Process Flow when process detail exists, Business Process, Template Alignment, Solution Area Checklist, Technical Design, Configuration Notes, testing, deployment, monitoring/support, risks, and Approval And Handover.

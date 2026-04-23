@@ -364,6 +364,80 @@ h1 {
   font-weight: 720;
 }
 
+.walkthrough-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #b7d8ce;
+  border-radius: 8px;
+  background: #eef7f5;
+}
+
+.walkthrough-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.walkthrough-heading strong {
+  color: #17343b;
+}
+
+.walkthrough-heading span {
+  color: #5a6b77;
+  font-size: 0.84rem;
+  font-weight: 820;
+}
+
+.walkthrough-panel ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.walkthrough-panel li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #2d3c46;
+}
+
+.walkthrough-number {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f5d6c;
+  border: 1px solid #b7d8ce;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.walkthrough-panel li.done .walkthrough-number {
+  background: #1f5d6c;
+  color: #fff;
+}
+
+.walkthrough-panel li strong {
+  display: block;
+  color: #17343b;
+  font-size: 0.94rem;
+}
+
+.walkthrough-panel li p {
+  margin-top: 3px;
+  color: #5a6b77;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 .topbar,
 .section-row,
 .preview-toolbar {
