@@ -4,7 +4,7 @@
 
 TechDoc Studio is a browser-based documentation accelerator for creating SAP and enterprise delivery documents from real implementation evidence. The app is designed to generate useful first-draft technical specifications, functional specs, support runbooks, and handover packs from either a code snippet/file or screenshot evidence.
 
-The current product direction is evidence-first: before users can generate, copy, export, or publish a document, they must choose the solution area and provide one active evidence source. The generated document name, business process, process flow, technical sections, testing focus, monitoring notes, and handover content should be derived from the supplied code or screenshot wherever possible. Manual fields remain available mainly for governance details, optional notes, versioning, ownership, customer-specific context, and approvals.
+The current product direction is evidence-first: before users can generate, copy, export, or publish a document, they must choose the solution area and provide implementation evidence. Code and screenshots can be used together when consultants need both code-level detail and visual proof. The generated document name, business process, process flow, technical sections, testing focus, monitoring notes, and handover content should be derived from the supplied code or screenshot wherever possible. Manual fields remain available mainly for governance details, optional notes, versioning, ownership, customer-specific context, and approvals.
 
 ## Problem It Solves
 
@@ -19,10 +19,11 @@ The app has been checked against the requested beta behavior:
 | Requirement | Current Status |
 | --- | --- |
 | User must choose the solution area before taking actions | Implemented. Area selection is mandatory before evidence upload, template upload, branding upload, preview/export actions, and code/screenshot intake. |
-| User must provide either code or screenshot evidence | Implemented. Copy, Confluence copy, and Word export are blocked until a solution area and evidence source exist. |
-| Code and screenshot evidence should not mix from cache | Implemented. Adding screenshots clears code evidence. Pasting/uploading code clears screenshots. Changing solution area clears current evidence. |
+| User must provide implementation evidence | Implemented. Copy, Confluence copy, and Word export are blocked until a solution area and evidence source exist. Code and screenshots can now be used together when the consultant needs both implementation detail and visual proof. |
+| Code and screenshot evidence should work together safely | Implemented. The app now supports combined code plus screenshot evidence and still clears evidence when the solution area changes. |
 | Document name should be derived from evidence | Implemented. The app derives title from code filename, detected code object, CPI/iFlow name, or screenshot caption/evidence before falling back. |
 | Most content should come from code/screenshot | Implemented and improved. Process flow, technical design, screenshot interpretation, code understanding, and testing focus are evidence-driven. Manual notes are supporting context. |
+| SAP Commerce specs should not contain unrelated ABAP/CAP references | Improved. Commerce generation now prioritizes OCC/API entry points, facade/service paths, Commerce model access, DTO mapping, null checks, exception paths, impex/type-system, Backoffice/HAC, and system-update context. |
 | No hardcoded sample content in beta flow | Implemented. Active sample defaults were removed and migrated away from saved local state. |
 | Screenshots from any supported area should be understood | Improved. The app now treats OCR text, screenshot captions, and reviewer notes as implementation evidence across ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, SAP Commerce, RAP, BW/Datasphere, and MDG. CPI/iFlow has an additional specialized extractor. |
 | Blank or missing input sections should be skipped | Implemented. Code and screenshot sections are only included when evidence exists. Missing inputs are not called out in the generated document. |
@@ -39,16 +40,17 @@ The app now guides users in this order:
 
 1. Choose solution area.
 2. Choose document format.
-3. Provide one active evidence source:
-   - paste/upload code, or
-   - upload screenshots and extract/paste visible text.
+3. Provide implementation evidence:
+   - paste/upload code,
+   - upload screenshots and extract/paste visible text, or
+   - provide both code and screenshots when both implementation detail and visual proof are required.
 4. Add optional supporting notes, owner, version, system, template, risks, testing notes, and logos.
 5. Preview, copy for Confluence, or download Word.
 
 The app displays readiness checks when required inputs are missing. Example checks include:
 
 - Solution area must be selected.
-- Provide exactly one active evidence path.
+- Provide code, screenshot evidence, or both.
 - Screenshot evidence should have OCR text or reviewer notes.
 - Screenshots need visible text or reviewer notes, such as object names, service/entity names, code snippets, UI labels, error text, workflow actions, adapters, systems, or file names, for strong extraction.
 - SAP Integration/CPI specs should include a mapping sheet reference before final handover.
@@ -103,7 +105,7 @@ Users can provide:
 - Optional risks and open items
 - Optional SAP Integration/CPI mapping sheet reference for source-to-target validation
 
-The active evidence source is intentionally singular. This prevents a cached old screenshot from contaminating a new code-based spec, or an old code snippet from contaminating a screenshot-based spec.
+Code and screenshot evidence can be combined for beta usage. Changing the solution area still clears the current evidence so content from one area does not contaminate another.
 
 ### Branding
 

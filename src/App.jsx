@@ -680,27 +680,44 @@ function detectCodeSignals(code, area) {
   const text = code || '';
   const signals = [];
 
-  const checks = [
-    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'Evidence suggests OData/service exposure; verify service entity, binding, annotations, and authorization behavior.'],
-    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'Evidence suggests CAP/CDS; verify entities, services, handlers, persistence, and deployment target.'],
-    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Evidence suggests Fiori/UI5; verify component structure, manifest routing, models, views, and launchpad intent.'],
-    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'Evidence suggests SAP Integration Suite/CPI; verify adapter flow, mapping, script step, headers/properties, and monitoring.'],
-    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Evidence suggests Azure Logic Apps; verify trigger, connectors, actions, retry policy, and run history.'],
-    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'Evidence suggests SAP Commerce; verify extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
-    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'Evidence suggests SAP Spartacus; verify Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
-    [/try\s*\{|catch\s*\(|raise exception|throw new|exception/i, 'Error handling detected: document validation failures, exception mapping, retries, and user/support messages.'],
+  const sharedChecks = [
+    [/try\s*\{|catch\s*\(|raise exception|throw new|notfoundexception|unknownidentifierexception|exception/i, 'Error handling detected: document validation failures, exception mapping, retries, and user/support messages.'],
     [/password|secret|client_secret|apikey|api-key|bearer\s+[a-z0-9]/i, 'Security-sensitive token pattern found: remove secrets from documentation and store credentials in a vault/destination.']
   ];
 
+  const areaChecks = {
+    'sap-integration': [
+      [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'Evidence suggests SAP Integration Suite/CPI; verify adapter flow, mapping, script step, headers/properties, and monitoring.']
+    ],
+    'sap-cap': [
+      [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'Evidence suggests CAP/CDS; verify entities, services, handlers, persistence, and deployment target.']
+    ],
+    'sap-btp-fiori': [
+      [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Evidence suggests Fiori/UI5; verify component structure, manifest routing, models, views, and launchpad intent.'],
+      [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'Evidence suggests OData/service exposure; verify service entity, binding, annotations, and authorization behavior.']
+    ],
+    'sap-rap': [
+      [/service binding|service definition|define service|annotate |behavior definition|behavior implementation/i, 'Evidence suggests RAP/OData exposure; verify service entity, binding, annotations, behavior pool, and authorization behavior.']
+    ],
+    'azure-logic-apps': [
+      [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Evidence suggests Azure Logic Apps; verify trigger, connectors, actions, retry policy, and run history.']
+    ],
+    'sap-commerce': [
+      [/occ|commerce|hybris|items\.xml|impex|backoffice|hac|flexiblesearch|cronjob|facade|populator|converter|b2bunitmodel/i, 'Evidence suggests SAP Commerce Cloud; verify OCC controller/API entry point, facade/service/populator path, model access, impex/type-system impact, and Backoffice/HAC validation.']
+    ],
+    'sap-spartacus': [
+      [/spartacus|cmsmapping|cmscomponent|ngmodule|angular|facade|occ endpoint/i, 'Evidence suggests SAP Spartacus; verify Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.']
+    ]
+  };
+
   if (
-    area.id === 'sap-abap' ||
-    area.id === 'sap-rap' ||
+    ['sap-abap', 'sap-rap'].includes(area.id) ||
     /\b(?:REPORT|DATA\s*\(|CALL FUNCTION|AUTHORITY-CHECK|sy-subrc|abap_true|SELECT-OPTIONS|START-OF-SELECTION|END-OF-SELECTION|CLASS\s+\w+\s+DEFINITION)\b/i.test(text)
   ) {
     signals.push('Evidence suggests ABAP/SAP backend; verify object type, database access, validations, function/class usage, and exception handling.');
   }
 
-  checks.forEach(([pattern, message]) => {
+  [...(areaChecks[area.id] || []), ...sharedChecks].forEach(([pattern, message]) => {
     if (pattern.test(text)) signals.push(message);
   });
 
@@ -992,23 +1009,7 @@ function inferCodeDetails(code, area) {
   const text = code || '';
   const lower = text.toLowerCase();
   const details = {
-    objects: extractMatches(text, [
-      /\bREPORT\s+([a-zA-Z_][\w/]*)/gi,
-      /\bCLASS\s+([a-zA-Z_][\w/]*)\s+(?:DEFINITION|IMPLEMENTATION)?/gi,
-      /\bMETHOD\s+([a-zA-Z_][\w/]*)/gi,
-      /\bFUNCTION\s+([a-zA-Z_][\w/]*)/gi,
-      /\b(?:class|method|function|form|module|entity|service|action|workflow|trigger)\s+([a-zA-Z_][\w/-]*)/gi,
-      /\b(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:async\s*)?\(/gi,
-      /\b(?:async\s+)?function\s+([a-zA-Z_$][\w$]*)/gi,
-      /\b(?:srv|service)\.(?:on|before|after)\s*\(\s*['"]([^'"]+)['"]/gi,
-      /\bapp\.(?:get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi,
-      /\b(?:controllerName|componentName|sap\.app["']?\s*:\s*{[^}]*id)\s*[:=]\s*['"]([^'"]+)['"]/gi,
-      /\b(?:extension|module|facade|populator|cronjob|impex|items\.xml)\s+([a-zA-Z_][\w/-]*)/gi,
-      /\b(?:DATA|TYPES)\s*\(\s*([a-zA-Z_][\w]*)\s*\)/gi,
-      /\bCALL FUNCTION\s+'([^']+)'/gi,
-      /\b(?:FROM|JOIN|UPDATE|MODIFY|INSERT INTO)\s+([a-zA-Z_][\w/]*)/gi,
-      /\b(?:define\s+(?:root\s+)?(?:view\s+entity|entity)|entity)\s+([a-zA-Z_][\w/]*)/gi
-    ]),
+    objects: [],
     validations: [],
     integrations: [],
     persistence: [],
@@ -1017,10 +1018,43 @@ function inferCodeDetails(code, area) {
     operations: []
   };
 
+  const commonObjectPatterns = [
+    /\bREPORT\s+([a-zA-Z_][\w/]*)/gi,
+    /\bCLASS\s+([a-zA-Z_][\w/]*)\s+(?:DEFINITION|IMPLEMENTATION)?/gi,
+    /\bMETHOD\s+([a-zA-Z_][\w/]*)/gi,
+    /\bFUNCTION\s+([a-zA-Z_][\w/]*)/gi,
+    /\b(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:async\s*)?\(/gi,
+    /\b(?:async\s+)?function\s+([a-zA-Z_$][\w$]*)/gi,
+    /\bapp\.(?:get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi,
+    /\b(?:controllerName|componentName|sap\.app["']?\s*:\s*{[^}]*id)\s*[:=]\s*['"]([^'"]+)['"]/gi,
+    /\bCALL FUNCTION\s+'([^']+)'/gi
+  ];
+  const areaObjectPatterns = {
+    'sap-cap': [
+      /\b(?:srv|service)\.(?:on|before|after)\s*\(\s*['"]([^'"]+)['"]/gi,
+      /\b(?:define\s+(?:root\s+)?(?:view\s+entity|entity)|entity|service|action)\s+([a-zA-Z_][\w/]*)/gi
+    ],
+    'sap-commerce': [
+      /\b(?:public|private|protected)\s+[\w<>, ?]+\s+([a-zA-Z_][\w]*)\s*\(/gi,
+      /\b([A-Z][A-Za-z0-9]*(?:Controller|Facade|FacadeImpl|Service|Populator|Converter|CronJob|Model|DTO|WsDTO))\b/g,
+      /\b(?:extension|module|facade|populator|converter|cronjob|impex|items\.xml)\s+([a-zA-Z_][\w/-]*)/gi,
+      /\bFlexibleSearch(?:Query)?\s*\(\s*['"]([^'"]+)/gi
+    ],
+    'sap-spartacus': [
+      /\b([A-Z][A-Za-z0-9]*(?:Component|Module|Service|Facade|Resolver|Guard))\b/g
+    ],
+    'azure-logic-apps': [
+      /\b(?:workflow|trigger|action)\s+([a-zA-Z_][\w/-]*)/gi
+    ]
+  };
+  details.objects = extractMatches(text, [...commonObjectPatterns, ...(areaObjectPatterns[area.id] || [])]);
+
   if (/if\s+.+\s+is\s+initial|mandatory|required|validate|validation/i.test(text)) {
     details.validations.push('Input validation or mandatory-field checks are present.');
   }
-  if (/select\b|from\b|join\b|update\b|modify\b|insert\b|delete\b|entity\s+\w+/i.test(text)) {
+  if (area.id === 'sap-commerce' && /flexiblesearch|modelservice|b2bunitmodel|customerModel|userService|commerce/i.test(text)) {
+    details.persistence.push('The code uses the SAP Commerce model layer or FlexibleSearch and should document model types, keys, and lookup behavior.');
+  } else if (/select\b|from\b|join\b|update\b|modify\b|insert\b|delete\b|entity\s+\w+/i.test(text)) {
     details.persistence.push('The code reads or changes application data and should document table/entity impact.');
   }
   if (/odata|\/iwbep\/|service binding|destination|http|api|adapter|connector|iflow|logic app|workflow|occ/i.test(text)) {
@@ -1035,10 +1069,81 @@ function inferCodeDetails(code, area) {
   if (/deserialize|serialize|mapping|transform|payload|json|xml/i.test(lower)) {
     details.operations.push('Payload parsing, serialization, mapping, or transformation is part of the delivered logic.');
   }
+  if (area.id === 'sap-commerce' && /dto|data\s*=|converter|populator|set[A-Z]\w+\s*\(|get[A-Z]\w+\s*\(/.test(text)) {
+    details.operations.push('DTO/model mapping is present and should document source model fields, target DTO fields, and default/null behavior.');
+  }
   if (/loop|filter|where|case|switch|if\s+/i.test(text)) {
     details.operations.push('Conditional or iterative business logic is present and should be described as processing rules.');
   }
   return details;
+}
+
+function extractCommerceFacts(form, screenshots) {
+  const code = getActiveCodeSnippet(form);
+  const context = [
+    code,
+    getScreenshotEvidenceText(screenshots || []),
+    form ? evidenceLine(form, 'businessProcess') : '',
+    form ? evidenceLine(form, 'overview') : '',
+    form ? evidenceLine(form, 'system') : ''
+  ].map(safeLine).filter(Boolean).join('\n');
+  const hasEvidence = /occ|commerce|hybris|controller|facade|facadeimpl|service|populator|converter|b2bunitmodel|dto|wsdto|flexiblesearch|notfoundexception|delivery/i.test(context);
+  const methods = uniqueItems(extractMatches(context, [
+    /\b(?:public|private|protected)\s+[\w<>, ?]+\s+([a-zA-Z_][\w]*)\s*\(/gi,
+    /\b([a-z][A-Za-z0-9_]*Delivery[A-Za-z0-9_]*)\s*\(/g,
+    /\b(getDeliveryEnrichment)\s*\(/gi
+  ]));
+  const controllers = uniqueItems(extractMatches(context, [
+    /\b([A-Z][A-Za-z0-9]*(?:Controller|OccController))\b/g,
+    /@(GetMapping|PostMapping|RequestMapping)\s*\(([^)]*)\)/gi
+  ]));
+  const facadeClasses = uniqueItems(extractMatches(context, [
+    /\b([A-Z][A-Za-z0-9]*(?:FacadeImpl|Facade|Service))\b/g
+  ]));
+  const models = uniqueItems(extractMatches(context, [
+    /\b([A-Z][A-Za-z0-9]*Model)\b/g,
+    /\b(B2BUnitModel)\b/g
+  ]));
+  const dtos = uniqueItems(extractMatches(context, [
+    /\b([A-Z][A-Za-z0-9]*(?:DTO|WsDTO|Data))\b/g
+  ]));
+  const exceptionTypes = uniqueItems(extractMatches(context, [
+    /\b(?:new\s+)?([A-Z][A-Za-z0-9]*(?:NotFoundException|Exception))\b/g,
+    /\b(NotFoundException)\b/g
+  ]).map((item) => item.replace(/^new\s+/, '')));
+  const deliveryIdSignals = /delivery\s*id|deliveryId|deliveryNumber|consignment|delivery/i.test(context);
+  const nullCheckSignals = /==\s*null|!=\s*null|Objects\.isNull|Objects\.nonNull|StringUtils\.isBlank|StringUtils\.isEmpty|isEmpty\(|isBlank\(/i.test(context);
+  const method = methods.find((item) => /delivery|enrichment/i.test(item)) || methods[0] || '';
+  const title = method
+    ? `${humanizeArtifactName(method)} OCC API`
+    : controllers[0]
+      ? `${humanizeArtifactName(controllers[0])} OCC API`
+      : '';
+  const processSteps = [];
+  const addStep = (condition, step) => {
+    if (condition && !processSteps.includes(step)) processSteps.push(step);
+  };
+
+  addStep(method || controllers.length || /occ|controller|@GetMapping|@RequestMapping/i.test(context), `OCC REST controller receives the delivery request${deliveryIdSignals ? ' with delivery ID' : ''}`);
+  addStep(nullCheckSignals, 'Validate request/model values with null or blank checks before enrichment logic continues');
+  addStep(facadeClasses.length || /facade|service/i.test(context), `Call Commerce facade/service layer${facadeClasses.length ? ` (${facadeClasses.slice(0, 3).join(', ')})` : ''}`);
+  addStep(models.length || /b2bunitmodel|model/i.test(context), `Read or cast Commerce model data${models.length ? ` (${models.slice(0, 3).join(', ')})` : ''}`);
+  addStep(dtos.length || /dto|wsdto|set[A-Z]\w+\s*\(/.test(context), `Map Commerce model values into response DTO${dtos.length ? ` (${dtos.slice(0, 3).join(', ')})` : ''}`);
+  addStep(exceptionTypes.length || /notfoundexception|throw new|exception/i.test(context), `Return controlled not-found/error paths${exceptionTypes.length ? ` (${exceptionTypes.slice(0, 3).join(', ')})` : ''}`);
+
+  return {
+    hasEvidence,
+    title,
+    method,
+    controllers,
+    facadeClasses,
+    models,
+    dtos,
+    exceptionTypes,
+    deliveryIdSignals,
+    nullCheckSignals,
+    processSteps
+  };
 }
 
 function collectEvidenceSummary(screenshots) {
@@ -1082,15 +1187,16 @@ function extractGenericEvidenceFacts(form, area, screenshots) {
     if (condition && !processSteps.includes(step)) processSteps.push(step);
   };
 
-  addStep(/report|selection-screen|select-options|parameter|start-of-selection|abap|se38|adt|class|method/i.test(context), 'Identify ABAP entry point, selection inputs, class/method, and transport context from screenshot/code evidence');
+  addStep(['sap-abap', 'sap-rap'].includes(area.id) && /report|selection-screen|select-options|parameter|start-of-selection|abap|se38|adt|class|method/i.test(context), 'Identify ABAP entry point, selection inputs, class/method, and transport context from screenshot/code evidence');
   addStep(/select\b|from\b|join\b|cds|define view|entity|items\.xml|database|hana|persist|repository/i.test(context), 'Read or persist business/application data using the tables, entities, item types, or repositories visible in evidence');
   addStep(/service|odata|api|endpoint|app\.(get|post|put|patch|delete)|router|occ|destination|http/i.test(context), 'Expose or call service/API endpoint shown in the evidence');
   addStep(/payload|json|xml|mapping|transform|deserialize|serialize|converter|mapper/i.test(context), 'Parse, map, or transform payload/data structures identified in the evidence');
   addStep(/validate|required|mandatory|if\s|case|switch|where|filter|guard|resolver|annotation/i.test(context), 'Apply validation, routing, filtering, annotations, guards, or business rules visible in the evidence');
   addStep(/oauth|jwt|xsuaa|role|authorization|authority-check|credential|secret|certificate|managed identity/i.test(context), 'Apply authorization, role, credential, certificate, or identity handling identified in evidence');
-  addStep(/ui5|fiori|manifest|component|controller|view|fragment|semantic object|launchpad|annotation/i.test(context), 'Render Fiori/UI behavior, navigation, annotations, component/controller, or launchpad intent shown in screenshot/code');
-  addStep(/cap|cds|srv\.|service\.cds|event handler|before|after|on\s*\(/i.test(context), 'Execute CAP service/entity handler logic and validations identified in evidence');
-  addStep(/commerce|spartacus|cms|occ|facade|populator|impex|cronjob|backoffice|hac|items\.xml/i.test(context), 'Process SAP Commerce/Spartacus extension, CMS/OCC, facade/populator, impex, cronjob, or Backoffice/HAC behavior');
+  addStep(area.id === 'sap-btp-fiori' && /ui5|fiori|manifest|component|controller|view|fragment|semantic object|launchpad|annotation/i.test(context), 'Render Fiori/UI behavior, navigation, annotations, component/controller, or launchpad intent shown in screenshot/code');
+  addStep(area.id === 'sap-cap' && /cap|cds|srv\.|service\.cds|event handler|before|after|on\s*\(/i.test(context), 'Execute CAP service/entity handler logic and validations identified in evidence');
+  addStep(area.id === 'sap-commerce' && /commerce|hybris|occ|facade|populator|converter|impex|cronjob|backoffice|hac|items\.xml|b2bunitmodel/i.test(context), 'Process SAP Commerce extension, OCC API, facade/service/populator, impex, cronjob, or Backoffice/HAC behavior');
+  addStep(area.id === 'sap-spartacus' && /spartacus|cms|occ|facade|ngmodule|component|guard|resolver/i.test(context), 'Process SAP Spartacus storefront, CMS/OCC, facade, route, guard, resolver, or component behavior');
   addStep(/logic app|workflow|trigger|connector|run history|compose|parse json|condition/i.test(context), 'Execute Azure Logic Apps trigger, connector, action, condition, retry, or run-history path shown in evidence');
   addStep(/error|exception|catch|failed|timeout|retry|reprocess|log|trace|monitor|message id|correlation/i.test(context), 'Log, monitor, retry, reprocess, or route exception outcome identified in evidence');
 
@@ -1118,9 +1224,11 @@ function extractGenericEvidenceFacts(form, area, screenshots) {
 }
 
 function getEvidenceTitleFromInputs(form, area, screenshots) {
-  if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.iflowName) return iflowFacts.iflowName;
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.title) return commerceFacts.title;
+  if (form.codeFileName) return humanizeArtifactName(form.codeFileName);
   const codeDetails = inferCodeDetails(getActiveEvidenceText(form, screenshots), area);
   const usefulObject = codeDetails.objects.find((item) => !isWeakArtifactCandidate(item));
   if (usefulObject) return humanizeArtifactName(usefulObject);
@@ -1152,6 +1260,11 @@ function deriveBusinessProcessText(form, area, screenshots) {
       iflowFacts.runtimeStatus ? `runtime status: ${iflowFacts.runtimeStatus}` : ''
     ].filter(Boolean).join('; ');
     return `${summary}. Process evidence: ${iflowFacts.processSteps.slice(0, 10).join(' -> ')}.`;
+  }
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.processSteps?.length) {
+    const entryPoint = commerceFacts.method ? `Method ${commerceFacts.method}()` : 'The OCC REST endpoint';
+    return `${entryPoint} is the SAP Commerce entry point. Process evidence: ${commerceFacts.processSteps.join(' -> ')}.`;
   }
   const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   if (genericFacts.processSteps.length) {
@@ -1207,6 +1320,11 @@ function derivePurposeText(form, area, screenshots) {
     ].filter(Boolean).join('; ');
     return `This technical specification documents ${flowName}, which processes integration messages${systems}. It explains the sender/receiver connectivity, iFlow processing steps, payload mapping, authorization handling, logging, monitoring, exception handling, test scope, and handover details required for developers and support teams.${flowActions ? ` Evidence indicates the iFlow ${flowActions}.` : ''}`;
   }
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.hasEvidence) {
+    const apiName = commerceFacts.method ? `${commerceFacts.method}()` : deriveDocumentTitle(form, area, screenshots);
+    return `This technical specification documents the SAP Commerce Cloud OCC/API change for ${apiName}. It explains the REST entry point, request input, facade/service path, Commerce model access, DTO mapping, exception paths, testing scope, deployment/system-update considerations, and support handover needed for the IXOM Commerce change.`;
+  }
 
   const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   if (genericFacts.processSteps.length || genericFacts.title) {
@@ -1230,6 +1348,7 @@ function deriveSystemText(form, area, screenshots) {
 
 function getEvidenceProfile(form, area, screenshots) {
   const codeSnippet = getActiveCodeSnippet(form);
+  const sourceMode = codeSnippet && screenshots.length ? 'combined' : screenshots.length ? 'screenshots' : (codeSnippet ? 'code' : 'manual');
   return {
     title: deriveDocumentTitle(form, area, screenshots),
     overview: derivePurposeText(form, area, screenshots),
@@ -1242,8 +1361,15 @@ function getEvidenceProfile(form, area, screenshots) {
     owner: evidenceLine(form, 'owner'),
     codeSnippet,
     codeFileName: safeLine(form.codeFileName),
-    sourceMode: screenshots.length ? 'screenshots' : (codeSnippet ? 'code' : 'manual')
+    sourceMode
   };
+}
+
+function describeEvidenceSource(sourceMode) {
+  if (sourceMode === 'combined') return 'Code and screenshot evidence';
+  if (sourceMode === 'screenshots') return 'Screenshot evidence';
+  if (sourceMode === 'code') return 'Code evidence';
+  return 'Manual inputs';
 }
 
 function areaSpecificDetails(area, codeDetails, screenshots) {
@@ -1433,10 +1559,25 @@ function buildImplementationSummary(form, area, screenshots) {
       safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
     ].filter(Boolean);
   }
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.hasEvidence) {
+    return [
+      `This specification documents ${commerceFacts.title || evidenceProfile.title} for ${area.name}.`,
+      commerceFacts.method ? `Primary entry point: OCC/API method ${commerceFacts.method}().` : '',
+      commerceFacts.deliveryIdSignals ? 'Business input: delivery ID drives the enrichment lookup and response.' : '',
+      commerceFacts.facadeClasses.length ? `Commerce layer evidence: ${commerceFacts.facadeClasses.slice(0, 4).join(', ')}.` : '',
+      commerceFacts.models.length ? `Model evidence: ${commerceFacts.models.slice(0, 4).join(', ')}.` : '',
+      commerceFacts.dtos.length ? `DTO/response mapping evidence: ${commerceFacts.dtos.slice(0, 4).join(', ')}.` : '',
+      commerceFacts.exceptionTypes.length ? `Exception evidence: ${commerceFacts.exceptionTypes.slice(0, 4).join(', ')}.` : '',
+      evidence.length ? `Screenshot/visual evidence reviewed: ${evidence[0]}.` : '',
+      safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
+    ].filter(Boolean);
+  }
   const summary = [
     `This specification documents ${evidenceProfile.title} for ${area.name}.`,
-    evidenceProfile.sourceMode === 'screenshots' ? 'Primary evidence source: uploaded screenshot(s); code sections are omitted unless code is supplied separately.' : '',
-    evidenceProfile.sourceMode === 'code' ? `Primary evidence source: code snippet${evidenceProfile.codeFileName ? ` from ${evidenceProfile.codeFileName}` : ''}; screenshot sections are not required.` : '',
+    evidenceProfile.sourceMode === 'combined' ? 'Evidence source: code and screenshots are both used; code provides implementation detail and screenshots provide visual/process proof.' : '',
+    evidenceProfile.sourceMode === 'screenshots' ? 'Evidence source: uploaded screenshot(s); code sections are included only when code is also supplied.' : '',
+    evidenceProfile.sourceMode === 'code' ? `Evidence source: code snippet${evidenceProfile.codeFileName ? ` from ${evidenceProfile.codeFileName}` : ''}.` : '',
     evidenceProfile.businessProcess ? `Business/process flow evidence: ${evidenceProfile.businessProcess}` : '',
     codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : '',
     signals[0],
@@ -1470,6 +1611,10 @@ function buildProcessFlowSteps(form, area, screenshots) {
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.processSteps?.length) {
     return iflowFacts.processSteps.slice(0, 18);
+  }
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.processSteps?.length) {
+    return commerceFacts.processSteps.slice(0, 18);
   }
   const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   if (genericFacts.processSteps.length >= 2) {
@@ -1557,6 +1702,8 @@ function buildTechnicalDiagramSteps(form, area, screenshots) {
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.diagramSteps?.length >= 3) return iflowFacts.diagramSteps.slice(0, 16);
+  const commerceFacts = area.id === 'sap-commerce' ? extractCommerceFacts(form, screenshots) : null;
+  if (commerceFacts?.processSteps?.length >= 3) return commerceFacts.processSteps.slice(0, 16);
   const genericFacts = extractGenericEvidenceFacts(form, area, screenshots);
   if (genericFacts.diagramSteps.length >= 3) return genericFacts.diagramSteps.slice(0, 16);
   const describedSteps = splitDetailedFlowSteps(extractBusinessProcessSteps(evidenceProfile.businessProcess));
@@ -1886,7 +2033,27 @@ function buildTemplateAlignmentContent(form, area) {
   return bulletList(buildTemplateAlignmentItems(form, area));
 }
 
-function buildCodeUnderstanding(form, area) {
+function buildCommerceCodeUnderstanding(form, screenshots) {
+  const facts = extractCommerceFacts(form, screenshots);
+  const items = [];
+  if (facts.method) items.push(`Entry method: ${facts.method}() handles the SAP Commerce OCC/API request${facts.deliveryIdSignals ? ' using a delivery ID as the driving input' : ''}.`);
+  if (facts.controllers.length) items.push(`Controller/API evidence: ${facts.controllers.slice(0, 3).join(', ')}.`);
+  if (facts.nullCheckSignals) items.push('Validation behavior: the implementation performs null/blank checks before continuing with delivery enrichment processing.');
+  if (facts.facadeClasses.length) items.push(`Commerce layer path: the implementation delegates through facade/service classes such as ${facts.facadeClasses.slice(0, 4).join(', ')}.`);
+  if (facts.models.length) items.push(`Model handling: Commerce model objects are read or cast, including ${facts.models.slice(0, 4).join(', ')}.`);
+  if (facts.dtos.length) items.push(`DTO mapping: response data is mapped into DTO/WS DTO structures such as ${facts.dtos.slice(0, 4).join(', ')}.`);
+  if (facts.exceptionTypes.length) items.push(`Exception paths: controlled error branches are present, including ${facts.exceptionTypes.slice(0, 4).join(', ')}.`);
+  if (!items.length && safeLine(getActiveCodeSnippet(form))) {
+    items.push('SAP Commerce code was supplied; review OCC controller method, facade/service delegation, model access, DTO mapping, validation, and exception paths.');
+  }
+  return items;
+}
+
+function buildCodeUnderstanding(form, area, screenshots = []) {
+  if (area.id === 'sap-commerce') {
+    const commerceItems = buildCommerceCodeUnderstanding(form, screenshots);
+    if (commerceItems.length) return bulletList(commerceItems);
+  }
   const signals = detectCodeSignals(getActiveCodeSnippet(form), area);
   return bulletList(signals);
 }
@@ -2214,7 +2381,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
       ['Owner', evidenceProfile.owner || 'TBD'],
       ['Systems', evidenceProfile.system || 'TBD'],
       ['Generated', new Date().toLocaleString()],
-      ['Evidence source', evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'],
+      ['Evidence source', describeEvidenceSource(evidenceProfile.sourceMode)],
       ...(evidenceProfile.codeFileName ? [['Code file', evidenceProfile.codeFileName]] : []),
       ...(area.id === 'sap-integration' ? [['Mapping sheet reference', safeLine(form.mappingSheetReference) || 'TBD - provide Excel/SharePoint/Google Drive link']] : []),
       ...templateRows
@@ -2259,7 +2426,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
     ]
     : [];
 
-  addSection('Purpose', [docParagraph(evidenceProfile.overview, { fallback: `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${evidenceProfile.sourceMode === 'screenshots' ? 'screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'code evidence' : 'project inputs'}.` })]);
+  addSection('Purpose', [docParagraph(evidenceProfile.overview, { fallback: `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${describeEvidenceSource(evidenceProfile.sourceMode).toLowerCase()}.` })]);
   addSection('Generated Implementation Summary', docBullets(buildImplementationSummary(form, area, screenshots)));
   addSection('Revision History', [docRevisionTable([
     ['Version', 'Date', 'Author/Owner', 'Change Summary'],
@@ -2280,7 +2447,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
   addSection('Configuration Notes', [docParagraph(evidenceProfile.configNotes)], { skipWhenEmpty: true });
 
   if (safeLine(evidenceProfile.codeSnippet)) {
-    addSection('Code Understanding', docBullets(detectCodeSignals(evidenceProfile.codeSnippet, area)));
+    addSection('Code Understanding', docBullets(area.id === 'sap-commerce' ? buildCommerceCodeUnderstanding(form, screenshots) : detectCodeSignals(evidenceProfile.codeSnippet, area)));
     addSection('Code Snippet', [docCodeBlock(evidenceProfile.codeSnippet)]);
   }
 
@@ -2428,7 +2595,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
   const areaRisks = bulletList(buildAreaRiskControls(area, form));
   const codeSections = safeLine(evidenceProfile.codeSnippet)
     ? [
-      ['Code Understanding', buildCodeUnderstanding(form, area)],
+      ['Code Understanding', buildCodeUnderstanding(form, area, screenshots)],
       ['Code Snippet', `\`\`\`\n${evidenceProfile.codeSnippet}\n\`\`\``]
     ]
     : [];
@@ -2440,7 +2607,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     : [];
   const approval = `${bulletList(buildApprovalHandoverPlan(area))}\n\n| Field | Detail |\n| --- | --- |\n${buildApprovalRows().map(([field, value]) => `| ${field} | ${value} |`).join('\n')}`;
   const commonStart = [
-    ['Purpose', evidenceProfile.overview || `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${evidenceProfile.sourceMode === 'screenshots' ? 'screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'code evidence' : 'project inputs'}.`],
+    ['Purpose', evidenceProfile.overview || `This document is created to capture the technical specification for ${evidenceProfile.title} using the supplied ${describeEvidenceSource(evidenceProfile.sourceMode).toLowerCase()}.`],
     ['Generated Implementation Summary', implementationSummary],
     ['Revision History', revisionHistory],
     ['Process Flow', processFlow],
@@ -2531,7 +2698,7 @@ function buildDocumentation(form, area, screenshots) {
     .join('\n\n');
 
   return `${buildBrandingMarkdown(form)}\n\n# ${evidenceProfile.title || 'Technical Documentation'}\n\n` +
-    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${evidenceProfile.owner || 'TBD'} |\n| Systems | ${evidenceProfile.system || 'TBD'} |\n| Evidence source | ${evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'} |\n${evidenceProfile.codeFileName ? `| Code file | ${evidenceProfile.codeFileName} |\n` : ''}${mappingSheetRow}| Generated | ${new Date().toLocaleString()} |\n\n` +
+    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${evidenceProfile.owner || 'TBD'} |\n| Systems | ${evidenceProfile.system || 'TBD'} |\n| Evidence source | ${describeEvidenceSource(evidenceProfile.sourceMode)} |\n${evidenceProfile.codeFileName ? `| Code file | ${evidenceProfile.codeFileName} |\n` : ''}${mappingSheetRow}| Generated | ${new Date().toLocaleString()} |\n\n` +
     `${body}\n`;
 }
 
@@ -2693,7 +2860,7 @@ function buildBlockedPreview(form, area, screenshots) {
       '',
       'Select the solution area for the document before uploading screenshots, pasting code, previewing, copying, or exporting.',
       '',
-      'After the area is selected, provide one evidence source: either a code snippet/file or screenshot evidence.'
+      'After the area is selected, provide code, screenshots, or both when both implementation detail and visual proof are needed.'
     ].join('\n');
   }
 
@@ -2713,11 +2880,10 @@ function buildBlockedPreview(form, area, screenshots) {
 function buildReadinessGaps(form, area, screenshots) {
   const gaps = [];
   if (!hasAreaSelection(form)) gaps.push('Solution area must be selected before evidence is added.');
-  if (!hasEvidenceInput(form, screenshots)) gaps.push('Provide exactly one active evidence path: code snippet/file or screenshot evidence.');
+  if (!hasEvidenceInput(form, screenshots)) gaps.push('Provide code, screenshot evidence, or both when both implementation detail and visual proof are needed.');
   if (screenshots.length && !screenshots.some((shot) => safeLine(shot.extractedText) || safeLine(shot.note))) {
     gaps.push('Screenshot evidence should have extracted text or reviewer notes so the app can derive real sections.');
   }
-  if (safeLine(form.codeSnippet) && screenshots.length) gaps.push('Code and screenshot evidence should not be active together; clear one source before export.');
   if (hasAreaSelection(form) && hasEvidenceInput(form, screenshots) && !getEvidenceTitleFromInputs(form, area, screenshots)) {
     gaps.push('Document name could not be confidently derived from evidence; add file name, object name, iFlow name, screenshot caption, or visible text.');
   }
@@ -2766,7 +2932,7 @@ function App() {
   const derivedBusinessProcess = areaReady && evidenceReady ? deriveBusinessProcessText(form, displayArea, screenshots) : '';
   const readinessGaps = buildReadinessGaps(form, displayArea, screenshots);
   const evidenceMode = safeLine(form.codeSnippet) || safeLine(form.codeFileName)
-    ? 'Code evidence'
+    ? screenshots.length ? 'Code and screenshot evidence' : 'Code evidence'
     : screenshots.length
       ? 'Screenshot evidence'
       : 'No evidence yet';
@@ -2829,9 +2995,6 @@ function App() {
 
   function handleCodeSnippetChange(value) {
     if (!ensureAreaSelected('paste or attach evidence')) return;
-    if (safeLine(value)) {
-      setScreenshots([]);
-    }
     setForm((current) => ({
       ...current,
       codeSnippet: value,
@@ -2871,11 +3034,10 @@ function App() {
         ...current,
         title: '',
         businessProcess: '',
-        codeSnippet: '',
-        codeFileName: '',
-        codeFileType: ''
+        codeFileName: current.codeFileName,
+        codeFileType: current.codeFileType
       }));
-      showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added; code evidence cleared`);
+      showToast(`${imageFiles.length} screenshot${imageFiles.length === 1 ? '' : 's'} added`);
     } catch {
       showToast('Could not load screenshot image');
     } finally {
@@ -3098,7 +3260,6 @@ function App() {
 
     try {
       const text = await file.text();
-      setScreenshots([]);
       setForm((current) => ({
         ...current,
         title: '',
@@ -3107,7 +3268,7 @@ function App() {
         codeFileName: file.name,
         codeFileType: file.type || file.name.split('.').pop()?.toUpperCase() || 'Code'
       }));
-      showToast(`Code loaded from ${file.name}; screenshots cleared`);
+      showToast(`Code loaded from ${file.name}`);
     } catch {
       showToast('Could not read code file');
     } finally {
@@ -3357,8 +3518,8 @@ function App() {
             </div>
           ) : !evidenceReady ? (
             <div className="validation-banner" role="status">
-              <strong>Add one evidence source</strong>
-              <span>Provide either a code snippet/file or screenshot evidence. When one path is used, the other is cleared so cached inputs do not contaminate the spec.</span>
+              <strong>Add evidence</strong>
+              <span>Provide code, screenshots, or both. Code gives implementation detail; screenshots provide visual proof for the generated spec.</span>
             </div>
           ) : (
             <div className="evidence-banner" role="status">
@@ -3543,13 +3704,13 @@ function App() {
                   value={form.codeSnippet}
                   onChange={(event) => handleCodeSnippetChange(event.target.value)}
                   disabled={!areaReady}
-                  placeholder={areaReady ? 'Paste code here. Adding code clears screenshot evidence so the spec is derived from one active source.' : 'Choose a solution area before pasting code.'}
+                  placeholder={areaReady ? 'Paste code here. You can also add screenshots for visual proof and flow/context evidence.' : 'Choose a solution area before pasting code.'}
                   spellCheck="false"
                 />
                 <div className="analysis-box">
                   <strong>Code understanding</strong>
                   <ul>
-                    {areaReady ? detectCodeSignals(form.codeSnippet, displayArea).map((signal) => (
+                    {areaReady ? (displayArea.id === 'sap-commerce' ? buildCommerceCodeUnderstanding(form, screenshots) : detectCodeSignals(form.codeSnippet, displayArea)).map((signal) => (
                       <li key={signal}>{signal}</li>
                     )) : <li>Choose a solution area before adding code evidence.</li>}
                   </ul>
