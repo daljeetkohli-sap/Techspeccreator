@@ -23,6 +23,7 @@ The app has been checked against the requested beta behavior:
 | Code and screenshot evidence should work together safely | Implemented. The app now supports combined code plus screenshot evidence and still clears evidence when the solution area changes. |
 | Document name should be derived from evidence | Implemented. The app derives title from code filename, detected code object, CPI/iFlow name, or screenshot caption/evidence before falling back. |
 | Most content should come from code/screenshot | Implemented and improved. Process flow, technical design, screenshot interpretation, code understanding, and testing focus are evidence-driven. Manual notes are supporting context. |
+| Generated specs should use wider project context | Implemented for MVP. The app now accepts Jira/work item context, design/HLD notes, architecture references, meeting decisions, and API/mapping details, then includes them in generated summaries and a Project Context section. |
 | SAP Commerce specs should not contain unrelated ABAP/CAP references | Improved. Commerce generation now prioritizes OCC/API entry points, facade/service paths, Commerce model access, DTO mapping, null checks, exception paths, impex/type-system, Backoffice/HAC, and system-update context. |
 | No hardcoded sample content in beta flow | Implemented. Active sample defaults were removed and migrated away from saved local state. |
 | Screenshots from any supported area should be understood | Improved. The app now treats OCR text, screenshot captions, and reviewer notes as implementation evidence across ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, SAP Commerce, RAP, BW/Datasphere, and MDG. CPI/iFlow has an additional specialized extractor. |
@@ -45,7 +46,8 @@ The app now guides users in this order:
    - upload screenshots and extract/paste visible text, or
    - provide both code and screenshots when both implementation detail and visual proof are required.
 4. Add optional supporting notes, owner, version, system, template, risks, testing notes, and logos.
-5. Preview, copy for Confluence, or download Word.
+5. Add project context such as Jira stories, HLD/design notes, architecture references, meeting decisions, and API/mapping details.
+6. Preview, copy for Confluence, or download Word.
 
 The app displays readiness checks when required inputs are missing. Example checks include:
 
@@ -104,8 +106,25 @@ Users can provide:
 - Optional testing notes
 - Optional risks and open items
 - Optional SAP Integration/CPI mapping sheet reference for source-to-target validation
+- Optional Jira / work item context
+- Optional design document or HLD context
+- Optional architecture or diagram reference
+- Optional meeting notes and decisions
+- Optional integration mapping, API, OpenAPI/Swagger, or source-to-target details
 
 Code and screenshot evidence can be combined for beta usage. Changing the solution area still clears the current evidence so content from one area does not contaminate another.
+
+### Context-Driven Generation
+
+The app now supports a dedicated Project Context layer. Consultants can paste or reference:
+
+- Jira epics, stories, defects, acceptance criteria, and release scope
+- Design documents or HLD notes
+- Architecture diagrams, sequence/data-flow notes, and source/target system context
+- Meeting notes, decisions, open questions, and sign-off comments
+- Integration mappings, API endpoint details, payload contracts, OpenAPI/Swagger links, and mapping sheet references
+
+This context is used alongside code snippets and screenshot evidence. Generated documents include a Project Context section and use the context to improve the implementation summary, process alignment, testing scope, support handover, and review narrative.
 
 ### Branding
 
@@ -140,6 +159,7 @@ Depending on format and evidence, the app can generate:
 - Process Flow
 - Technical Flow Diagram
 - Business Process
+- Project Context
 - Template Alignment
 - Mapping Sheet for SAP Integration/CPI
 - Document Type Focus
@@ -370,6 +390,7 @@ Beta testing should validate:
 - Readiness checks are useful and not annoying.
 - Word export opens correctly in Word and Google Docs.
 - Confluence copy pastes cleanly.
+- Project context from Jira/story notes, design/HLD references, architecture notes, decisions, mappings, and API details appears in the generated document without overriding stronger code or screenshot evidence.
 - Technical flow diagram is useful and not overconfident.
 - CPI mapping sheet reference appears in metadata, generated sections, Word export, and Confluence-ready copy.
 - Dynamic solution-area sections are useful for ABAP, CPI, Fiori, CAP, Azure Logic Apps, Spartacus, Commerce, RAP, BW/Datasphere, and MDG.

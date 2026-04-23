@@ -397,6 +397,11 @@ const initialForm = {
   risks: '',
   revisionSummary: '',
   mappingSheetReference: '',
+  jiraContext: '',
+  designContext: '',
+  architectureContext: '',
+  decisionContext: '',
+  apiContext: '',
   templateMode: 'auto',
   templateName: '',
   templateType: '',
@@ -747,8 +752,19 @@ function getScreenshotEvidenceText(screenshots) {
     .join('\n');
 }
 
+function getProjectContextText(form) {
+  if (!form) return '';
+  return [
+    evidenceLine(form, 'jiraContext'),
+    evidenceLine(form, 'designContext'),
+    evidenceLine(form, 'architectureContext'),
+    evidenceLine(form, 'decisionContext'),
+    evidenceLine(form, 'apiContext')
+  ].filter(Boolean).join('\n');
+}
+
 function getActiveEvidenceText(form, screenshots) {
-  return [getActiveCodeSnippet(form), getScreenshotEvidenceText(screenshots || [])].map(safeLine).filter(Boolean).join('\n');
+  return [getActiveCodeSnippet(form), getScreenshotEvidenceText(screenshots || []), getProjectContextText(form)].map(safeLine).filter(Boolean).join('\n');
 }
 
 function uniqueItems(values) {
@@ -829,6 +845,7 @@ function extractIntegrationFlowFacts(form, screenshots) {
     form?.businessProcess,
     form?.overview,
     form?.system,
+    getProjectContextText(form),
     form?.codeSnippet,
     ...screenshots.flatMap((shot) => [shot.name, shot.caption, shot.screenType, shot.extractedText, shot.note])
   ].join(' '));
@@ -1083,6 +1100,7 @@ function extractCommerceFacts(form, screenshots) {
   const context = [
     code,
     getScreenshotEvidenceText(screenshots || []),
+    getProjectContextText(form),
     form ? evidenceLine(form, 'businessProcess') : '',
     form ? evidenceLine(form, 'overview') : '',
     form ? evidenceLine(form, 'system') : ''
@@ -1163,6 +1181,7 @@ function getActiveCodeSnippet(form) {
 function extractGenericEvidenceFacts(form, area, screenshots) {
   const context = [
     getActiveEvidenceText(form, screenshots),
+    getProjectContextText(form),
     form ? evidenceLine(form, 'businessProcess') : '',
     form ? evidenceLine(form, 'overview') : '',
     form ? evidenceLine(form, 'system') : ''
@@ -1545,6 +1564,7 @@ function buildImplementationSummary(form, area, screenshots) {
   const codeDetails = inferCodeDetails(evidenceText, area);
   const signals = detectCodeSignals(evidenceText, area);
   const evidence = collectEvidenceSummary(screenshots);
+  const contextItems = buildProjectContextItems(form);
   const iflowFacts = area.id === 'sap-integration' ? extractIntegrationFlowFacts(form, screenshots) : null;
   if (iflowFacts?.hasEvidence) {
     return [
@@ -1556,6 +1576,7 @@ function buildImplementationSummary(form, area, screenshots) {
       iflowFacts.authSteps.length ? `Authorization sequence: ${iflowFacts.authSteps.join(' -> ')}.` : '',
       iflowFacts.exceptionSteps.length ? `Exception handling evidence: ${iflowFacts.exceptionSteps.join(', ')}.` : '',
       evidence.length ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : '',
+      contextItems.length ? `Project context applied: ${contextItems.slice(0, 3).join(' ')}` : '',
       safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
     ].filter(Boolean);
   }
@@ -1570,6 +1591,7 @@ function buildImplementationSummary(form, area, screenshots) {
       commerceFacts.dtos.length ? `DTO/response mapping evidence: ${commerceFacts.dtos.slice(0, 4).join(', ')}.` : '',
       commerceFacts.exceptionTypes.length ? `Exception evidence: ${commerceFacts.exceptionTypes.slice(0, 4).join(', ')}.` : '',
       evidence.length ? `Screenshot/visual evidence reviewed: ${evidence[0]}.` : '',
+      contextItems.length ? `Project context applied: ${contextItems.slice(0, 3).join(' ')}` : '',
       safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
     ].filter(Boolean);
   }
@@ -1582,6 +1604,7 @@ function buildImplementationSummary(form, area, screenshots) {
     codeDetails.objects.length ? `Key technical objects or identifiers inferred from the snippet: ${codeDetails.objects.join(', ')}.` : '',
     signals[0],
     evidence.length ? `Primary screenshot evidence reviewed: ${evidence[0]}.` : '',
+    contextItems.length ? `Project context applied: ${contextItems.slice(0, 3).join(' ')}` : '',
     safeLine(form.templateOutline) ? 'Customer template guidance was used to shape the document layout and handover content.' : ''
   ];
 
@@ -2033,6 +2056,27 @@ function buildTemplateAlignmentContent(form, area) {
   return bulletList(buildTemplateAlignmentItems(form, area));
 }
 
+function buildProjectContextItems(form) {
+  return [
+    safeLine(form.jiraContext) ? `Jira / work item context: ${safeLine(form.jiraContext)}` : '',
+    safeLine(form.designContext) ? `Design / HLD context: ${safeLine(form.designContext)}` : '',
+    safeLine(form.architectureContext) ? `Architecture or diagram reference: ${safeLine(form.architectureContext)}` : '',
+    safeLine(form.decisionContext) ? `Meeting notes / decisions: ${safeLine(form.decisionContext)}` : '',
+    safeLine(form.apiContext) ? `Integration mapping / API details: ${safeLine(form.apiContext)}` : ''
+  ].filter(Boolean);
+}
+
+function buildContextDrivenItems(form, area, screenshots) {
+  const contextItems = buildProjectContextItems(form);
+  if (!contextItems.length) return [];
+  const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  return [
+    ...contextItems,
+    `Context use: align ${area.name} documentation for "${evidenceProfile.title}" with the referenced delivery scope, acceptance criteria, design decisions, architecture, mapping/API contract, and review notes.`,
+    'Consultants should confirm any context that conflicts with visible code, screenshots, or implementation evidence before sign-off.'
+  ];
+}
+
 function buildCommerceCodeUnderstanding(form, screenshots) {
   const facts = extractCommerceFacts(form, screenshots);
   const items = [];
@@ -2434,6 +2478,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
   ])]);
   addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(evidenceProfile.businessProcess)], { skipWhenEmpty: true });
+  addSection('Project Context', docBullets(buildContextDrivenItems(form, area, screenshots)), { skipWhenEmpty: true });
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
   if (area.id === 'sap-integration') {
     addSection('Mapping Sheet', docBullets(buildMappingSheetItems(form, area)));
@@ -2584,6 +2629,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     return `### ${section}\n${bulletList(insights)}`;
   }).join('\n\n');
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
+  const projectContext = bulletList(buildContextDrivenItems(form, area, screenshots));
   const revisionHistory = `| Version | Date | Author/Owner | Change Summary |\n| --- | --- | --- | --- |\n${buildRevisionRows(form).map((row) => `| ${row.map((cell) => safeLine(cell) || 'TBD').join(' | ')} |`).join('\n')}`;
   const processFlow = buildProcessFlowContent(form, area, screenshots);
   const mappingSheet = bulletList(buildMappingSheetItems(form, area));
@@ -2612,6 +2658,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     ['Revision History', revisionHistory],
     ['Process Flow', processFlow],
     ['Business Process', evidenceProfile.businessProcess],
+    ['Project Context', projectContext],
     ['Template Alignment', buildTemplateAlignmentContent(form, area)],
     ...(area.id === 'sap-integration' ? [['Mapping Sheet', mappingSheet]] : []),
     ['Document Type Focus', bulletList(buildFormatFocusItems(form, area))]
@@ -2939,7 +2986,7 @@ function App() {
 
   const stats = useMemo(() => {
     const words = generatedDoc.split(/\s+/).filter(Boolean).length;
-    const trackedFields = ['title', 'owner', 'system', 'documentVersion', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes', 'revisionSummary'];
+    const trackedFields = ['title', 'owner', 'system', 'documentVersion', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes', 'revisionSummary', 'jiraContext', 'designContext', 'architectureContext', 'decisionContext', 'apiContext'];
     if (selectedArea?.id === 'sap-integration') trackedFields.push('mappingSheetReference');
     const completedFields = trackedFields
       .filter((field) => safeLine(form[field])).length;
@@ -2985,7 +3032,12 @@ function App() {
           codeSnippet: '',
           codeFileName: '',
           codeFileType: '',
-          mappingSheetReference: ''
+          mappingSheetReference: '',
+          jiraContext: '',
+          designContext: '',
+          architectureContext: '',
+          decisionContext: '',
+          apiContext: ''
         })
     }));
     if (form.areaId !== areaId) setScreenshots([]);
@@ -3683,6 +3735,31 @@ function App() {
                     />
                   </label>
                 ) : null}
+              </section>
+
+              <section className="input-section">
+                <h3>Project Context</h3>
+                <p className="helper-copy">Add project references so the generated spec can align code and screenshots with real delivery scope, design decisions, mappings, and acceptance criteria.</p>
+                <label>
+                  Jira / work item context
+                  <textarea rows={3} value={form.jiraContext} onChange={(event) => updateForm('jiraContext', event.target.value)} disabled={!areaReady} placeholder="Epic/story IDs, story summary, acceptance criteria, defect IDs, or release scope." />
+                </label>
+                <label>
+                  Design / HLD context
+                  <textarea rows={3} value={form.designContext} onChange={(event) => updateForm('designContext', event.target.value)} disabled={!areaReady} placeholder="Design document or HLD link, key design assumptions, dependencies, and target behavior." />
+                </label>
+                <label>
+                  Architecture or diagram reference
+                  <textarea rows={3} value={form.architectureContext} onChange={(event) => updateForm('architectureContext', event.target.value)} disabled={!areaReady} placeholder="Architecture diagram link, component/data flow, source/target systems, trust boundaries, or sequence notes." />
+                </label>
+                <label>
+                  Meeting notes / decisions
+                  <textarea rows={3} value={form.decisionContext} onChange={(event) => updateForm('decisionContext', event.target.value)} disabled={!areaReady} placeholder="Design decisions, open questions, agreed constraints, reviewer comments, or sign-off notes." />
+                </label>
+                <label>
+                  Integration mapping / API details
+                  <textarea rows={3} value={form.apiContext} onChange={(event) => updateForm('apiContext', event.target.value)} disabled={!areaReady} placeholder="API endpoint, payload contract, field mapping, mapping sheet link, OpenAPI/Swagger link, or source-to-target notes." />
+                </label>
               </section>
 
               <section className="input-section">
