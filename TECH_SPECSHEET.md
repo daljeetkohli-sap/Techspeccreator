@@ -29,6 +29,7 @@ The app has been checked against the requested beta behavior:
 | Word export should be real `.docx` | Implemented. The app exports a real Word document with embedded generated logo, optional customer logo, screenshots, and technical flow diagram. |
 | Confluence-ready option should exist | Implemented. The app can copy Confluence-friendly HTML with headings, tables, lists, code blocks, and rendered flow diagram. |
 | Document formats should support Technical, Functional, Support Runbook, and Handover Pack | Implemented at structural level. Each format now produces different section emphasis, but deeper format-specific intelligence is still a roadmap item. |
+| SAP Integration/CPI specs should capture mapping sheet references | Implemented. CPI documents now include a Mapping Sheet section and metadata placeholder for an Excel file, SharePoint link, Google Drive link, or repository reference. |
 
 ## Current Capabilities
 
@@ -50,6 +51,7 @@ The app displays readiness checks when required inputs are missing. Example chec
 - Provide exactly one active evidence path.
 - Screenshot evidence should have OCR text or reviewer notes.
 - Screenshots need visible text or reviewer notes, such as object names, service/entity names, code snippets, UI labels, error text, workflow actions, adapters, systems, or file names, for strong extraction.
+- SAP Integration/CPI specs should include a mapping sheet reference before final handover.
 - Document name could not be confidently derived from evidence.
 
 ### Solution Area Coverage
@@ -99,6 +101,7 @@ Users can provide:
 - Optional revision summary
 - Optional testing notes
 - Optional risks and open items
+- Optional SAP Integration/CPI mapping sheet reference for source-to-target validation
 
 The active evidence source is intentionally singular. This prevents a cached old screenshot from contaminating a new code-based spec, or an old code snippet from contaminating a screenshot-based spec.
 
@@ -136,6 +139,7 @@ Depending on format and evidence, the app can generate:
 - Technical Flow Diagram
 - Business Process
 - Template Alignment
+- Mapping Sheet for SAP Integration/CPI
 - Document Type Focus
 - Solution Area Checklist
 - Technical Design
@@ -195,6 +199,7 @@ For iFlow screenshots, the app can now infer:
 - Authorization subprocess steps, such as client ID/secret, Base64 auth, access token, and auth header/property
 - Mapping subprocess steps, such as JSON-to-XML, message mapping, application ID, XML-to-JSON, normalization, and persist data
 - Exception subprocess/error logging
+- Mapping sheet reference for source-to-target validation, including Excel file name, SharePoint link, Google Drive link, or controlled repository URL
 
 The app uses OCR preprocessing to improve small iFlow label recognition by enlarging and increasing screenshot contrast before browser OCR runs.
 
@@ -364,6 +369,7 @@ Beta testing should validate:
 - Word export opens correctly in Word and Google Docs.
 - Confluence copy pastes cleanly.
 - Technical flow diagram is useful and not overconfident.
+- CPI mapping sheet reference appears in metadata, generated sections, Word export, and Confluence-ready copy.
 - Dynamic solution-area sections are useful for ABAP, CPI, Fiori, CAP, Azure Logic Apps, Spartacus, Commerce, RAP, BW/Datasphere, and MDG.
 - Approval and handover fields are usable for real governance.
 

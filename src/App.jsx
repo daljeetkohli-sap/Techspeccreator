@@ -29,7 +29,7 @@ const capabilityAreas = [
     name: 'SAP Integration Suite / CPI',
     tag: 'Integration',
     sections: ['Integration scenario', 'Sender and receiver adapters', 'Message mapping and transformation', 'Security material', 'Exception subprocess and retry', 'Monitoring and reprocessing'],
-    prompts: ['Sender/receiver systems', 'iFlow name', 'Adapters/protocols', 'Message mapping/script', 'Credential alias/certificate', 'Monitoring view', 'Retry/reprocess rule']
+    prompts: ['Sender/receiver systems', 'iFlow name', 'Adapters/protocols', 'Message mapping/script', 'Mapping sheet reference', 'Credential alias/certificate', 'Monitoring view', 'Retry/reprocess rule']
   },
   {
     id: 'sap-btp-fiori',
@@ -193,6 +193,7 @@ const areaDocumentProfiles = {
       'iFlow name': 'Capture package, iFlow ID, version, deployed artifact, and environment.',
       'Adapters/protocols': 'Document sender/receiver adapters, endpoints, QoS, timeout, polling, and authentication.',
       'Message mapping/script': 'Describe graphical mapping, Groovy scripts, value mappings, content modifiers, and field defaults.',
+      'Mapping sheet reference': 'Provide the mapping sheet Excel file name, SharePoint link, Google Drive link, or controlled repository reference used to validate source-to-target field mapping.',
       'Credential alias/certificate': 'Capture security material, OAuth/certificate/basic auth, destinations, and rotation owner.',
       'Monitoring view': 'Document message monitor, MPL properties, correlation ID, payload visibility, and alerting.',
       'Retry/reprocess rule': 'Define retry count, idempotency, duplicate handling, manual reprocess, and failure ownership.'
@@ -395,6 +396,7 @@ const initialForm = {
   testingNotes: '',
   risks: '',
   revisionSummary: '',
+  mappingSheetReference: '',
   templateMode: 'auto',
   templateName: '',
   templateType: '',
@@ -679,17 +681,24 @@ function detectCodeSignals(code, area) {
   const signals = [];
 
   const checks = [
-    [/^\s*(data|select|loop|call function|method|raise exception)\b|\/iwbep\/|authority-check|sy-subrc|abap_true/im, 'Likely ABAP/SAP backend indicators found: verify object type, database access, validations, function/class usage, and exception handling.'],
-    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'Likely OData/service exposure indicators found: verify service entity, binding, annotations, and authorization behavior.'],
-    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'Likely CAP/CDS indicators found: verify entities, services, handlers, persistence, and deployment target.'],
-    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Likely Fiori/UI5 indicators found: verify component structure, manifest routing, models, views, and launchpad intent.'],
-    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'Likely SAP Integration Suite/CPI indicators found: verify adapter flow, mapping, script step, headers/properties, and monitoring.'],
-    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Likely Azure Logic Apps indicators found: verify trigger, connectors, actions, retry policy, and run history.'],
-    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'Likely SAP Commerce indicators found: verify extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
-    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'Likely SAP Spartacus indicators found: verify Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
+    [/\/iwbep\/|odata|service binding|service definition|define service|annotate /i, 'Evidence suggests OData/service exposure; verify service entity, binding, annotations, and authorization behavior.'],
+    [/entity\s+\w+|service\s+\w+|using\s+.*from|\.cds\b|srv\/|db\//i, 'Evidence suggests CAP/CDS; verify entities, services, handlers, persistence, and deployment target.'],
+    [/<\?xml|<mvc:|sap\.m\.|manifest\.json|component\.js|ui5/i, 'Evidence suggests Fiori/UI5; verify component structure, manifest routing, models, views, and launchpad intent.'],
+    [/groovy|message\.getbody|camel|content modifier|integration flow|iflow/i, 'Evidence suggests SAP Integration Suite/CPI; verify adapter flow, mapping, script step, headers/properties, and monitoring.'],
+    [/"triggers"\s*:|"actions"\s*:|"definition"\s*:|"workflow"|logic app/i, 'Evidence suggests Azure Logic Apps; verify trigger, connectors, actions, retry policy, and run history.'],
+    [/impex|items\.xml|backoffice|cronjob|flexiblesearch|commerce/i, 'Evidence suggests SAP Commerce; verify extension, item type, impex, facade/service, cronjob, or Backoffice/HAC dependency.'],
+    [/occ|spartacus|cmsmapping|cmscomponent|ngmodule|angular/i, 'Evidence suggests SAP Spartacus; verify Angular module, CMS mapping, OCC calls, route/config, and storefront behavior.'],
     [/try\s*\{|catch\s*\(|raise exception|throw new|exception/i, 'Error handling detected: document validation failures, exception mapping, retries, and user/support messages.'],
     [/password|secret|client_secret|apikey|api-key|bearer\s+[a-z0-9]/i, 'Security-sensitive token pattern found: remove secrets from documentation and store credentials in a vault/destination.']
   ];
+
+  if (
+    area.id === 'sap-abap' ||
+    area.id === 'sap-rap' ||
+    /\b(?:REPORT|DATA\s*\(|CALL FUNCTION|AUTHORITY-CHECK|sy-subrc|abap_true|SELECT-OPTIONS|START-OF-SELECTION|END-OF-SELECTION|CLASS\s+\w+\s+DEFINITION)\b/i.test(text)
+  ) {
+    signals.push('Evidence suggests ABAP/SAP backend; verify object type, database access, validations, function/class usage, and exception handling.');
+  }
 
   checks.forEach(([pattern, message]) => {
     if (pattern.test(text)) signals.push(message);
@@ -1584,6 +1593,9 @@ function buildTechnicalDiagramSteps(form, area, screenshots) {
   addStep(evidenceProfile.testingNotes, 'Provided by tester: validate with test evidence');
 
   if (steps.length >= 3) return steps.slice(0, 16);
+  if (evidenceProfile.sourceMode === 'screenshots' && !screenshots.some((shot) => displayEvidenceText(shot.extractedText) || safeLine(shot.note))) {
+    return [];
+  }
   return buildProcessFlowSteps(form, area, screenshots)
     .flatMap((step) => splitDetailedFlowSteps([step]))
     .slice(0, 16);
@@ -1877,6 +1889,18 @@ function buildTemplateAlignmentContent(form, area) {
 function buildCodeUnderstanding(form, area) {
   const signals = detectCodeSignals(getActiveCodeSnippet(form), area);
   return bulletList(signals);
+}
+
+function buildMappingSheetItems(form, area) {
+  if (area.id !== 'sap-integration') return [];
+  const reference = safeLine(form.mappingSheetReference);
+  return [
+    reference
+      ? `Mapping sheet reference: ${reference}`
+      : 'Mapping sheet reference: TBD - provide the Excel file name, SharePoint link, Google Drive link, or controlled repository link used for source-to-target field mapping.',
+    'Consultants should validate source fields, target fields, mandatory/optional flags, default values, transformation rules, value mappings, and owner/sign-off against the mapping sheet.',
+    'If no mapping sheet exists yet, create one before final handover and update this section with the approved link.'
+  ];
 }
 
 function buildFormatFocusItems(form, area) {
@@ -2192,6 +2216,7 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
       ['Generated', new Date().toLocaleString()],
       ['Evidence source', evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'],
       ...(evidenceProfile.codeFileName ? [['Code file', evidenceProfile.codeFileName]] : []),
+      ...(area.id === 'sap-integration' ? [['Mapping sheet reference', safeLine(form.mappingSheetReference) || 'TBD - provide Excel/SharePoint/Google Drive link']] : []),
       ...templateRows
     ])
   ];
@@ -2243,6 +2268,9 @@ function buildDocxDocument(form, area, screenshots, brandLogoAsset, flowDiagramA
   addSection('Process Flow', processFlowBody, { skipWhenEmpty: true });
   addSection('Business Process', [docParagraph(evidenceProfile.businessProcess)], { skipWhenEmpty: true });
   addSection('Template Alignment', docBullets(buildTemplateAlignmentItems(form, area)));
+  if (area.id === 'sap-integration') {
+    addSection('Mapping Sheet', docBullets(buildMappingSheetItems(form, area)));
+  }
   addSection('Document Type Focus', docBullets(buildFormatFocusItems(form, area)));
   addSection('Solution Area Checklist', [docInfoTable(getChecklistRows(area).map((row) => [row.item, row.detail]))]);
   addSection('Technical Design', area.sections.flatMap((section) => [
@@ -2391,6 +2419,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
   const implementationSummary = bulletList(buildImplementationSummary(form, area, screenshots));
   const revisionHistory = `| Version | Date | Author/Owner | Change Summary |\n| --- | --- | --- | --- |\n${buildRevisionRows(form).map((row) => `| ${row.map((cell) => safeLine(cell) || 'TBD').join(' | ')} |`).join('\n')}`;
   const processFlow = buildProcessFlowContent(form, area, screenshots);
+  const mappingSheet = bulletList(buildMappingSheetItems(form, area));
   const unitTesting = bulletList(buildUnitTestingPlan(area, form));
   const integrationTesting = bulletList(buildIntegrationTestingPlan(area, form, screenshots));
   const regressionTesting = bulletList(buildRegressionTestingPlan(area, form));
@@ -2417,6 +2446,7 @@ function buildFormatSpecificSections(form, area, screenshots) {
     ['Process Flow', processFlow],
     ['Business Process', evidenceProfile.businessProcess],
     ['Template Alignment', buildTemplateAlignmentContent(form, area)],
+    ...(area.id === 'sap-integration' ? [['Mapping Sheet', mappingSheet]] : []),
     ['Document Type Focus', bulletList(buildFormatFocusItems(form, area))]
   ];
 
@@ -2490,6 +2520,9 @@ function buildFormatSpecificSections(form, area, screenshots) {
 function buildDocumentation(form, area, screenshots) {
   const selectedFormat = docFormats.find((format) => format.id === form.format) ?? docFormats[1];
   const evidenceProfile = getEvidenceProfile(form, area, screenshots);
+  const mappingSheetRow = area.id === 'sap-integration'
+    ? `| Mapping sheet reference | ${safeLine(form.mappingSheetReference) || 'TBD - provide Excel/SharePoint/Google Drive link'} |\n`
+    : '';
   const sections = buildFormatSpecificSections(form, area, screenshots)
     .filter(([, content]) => safeLine(content));
 
@@ -2498,7 +2531,7 @@ function buildDocumentation(form, area, screenshots) {
     .join('\n\n');
 
   return `${buildBrandingMarkdown(form)}\n\n# ${evidenceProfile.title || 'Technical Documentation'}\n\n` +
-    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${evidenceProfile.owner || 'TBD'} |\n| Systems | ${evidenceProfile.system || 'TBD'} |\n| Evidence source | ${evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'} |\n${evidenceProfile.codeFileName ? `| Code file | ${evidenceProfile.codeFileName} |\n` : ''}| Generated | ${new Date().toLocaleString()} |\n\n` +
+    `| Field | Detail |\n| --- | --- |\n| Document type | ${selectedFormat.name} |\n| Solution area | ${area.name} |\n| Document version | ${safeLine(form.documentVersion) || '0.1 Draft'} |\n| Owner | ${evidenceProfile.owner || 'TBD'} |\n| Systems | ${evidenceProfile.system || 'TBD'} |\n| Evidence source | ${evidenceProfile.sourceMode === 'screenshots' ? 'Screenshot evidence' : evidenceProfile.sourceMode === 'code' ? 'Code evidence' : 'Manual inputs'} |\n${evidenceProfile.codeFileName ? `| Code file | ${evidenceProfile.codeFileName} |\n` : ''}${mappingSheetRow}| Generated | ${new Date().toLocaleString()} |\n\n` +
     `${body}\n`;
 }
 
@@ -2688,6 +2721,9 @@ function buildReadinessGaps(form, area, screenshots) {
   if (hasAreaSelection(form) && hasEvidenceInput(form, screenshots) && !getEvidenceTitleFromInputs(form, area, screenshots)) {
     gaps.push('Document name could not be confidently derived from evidence; add file name, object name, iFlow name, screenshot caption, or visible text.');
   }
+  if (area.id === 'sap-integration' && hasEvidenceInput(form, screenshots) && !safeLine(form.mappingSheetReference)) {
+    gaps.push('SAP Integration/CPI specs should include a mapping sheet file name, SharePoint link, Google Drive link, or repository reference before final handover.');
+  }
   if (area.id === 'sap-integration' && screenshots.length) {
     const iflowFacts = extractIntegrationFlowFacts(form, screenshots);
     if (!iflowFacts.hasEvidence && screenshots.some((shot) => /iflow|integration/i.test(`${shot.screenType} ${shot.caption} ${shot.name}`))) {
@@ -2737,15 +2773,18 @@ function App() {
 
   const stats = useMemo(() => {
     const words = generatedDoc.split(/\s+/).filter(Boolean).length;
-    const completedFields = ['title', 'owner', 'system', 'documentVersion', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes', 'revisionSummary']
+    const trackedFields = ['title', 'owner', 'system', 'documentVersion', 'overview', 'businessProcess', 'codeSnippet', 'testingNotes', 'revisionSummary'];
+    if (selectedArea?.id === 'sap-integration') trackedFields.push('mappingSheetReference');
+    const completedFields = trackedFields
       .filter((field) => safeLine(form[field])).length;
     return {
       words,
       screenshots: screenshots.length,
       completedFields,
+      trackedFields: trackedFields.length,
       sections: (generatedDoc.match(/^##\s+\d+\./gm) || []).length
     };
-  }, [form, generatedDoc, screenshots.length]);
+  }, [form, generatedDoc, screenshots.length, selectedArea?.id]);
 
   useEffect(() => {
     window.localStorage.setItem('techdoc-studio-workspace', JSON.stringify({ form }));
@@ -2779,7 +2818,8 @@ function App() {
           businessProcess: '',
           codeSnippet: '',
           codeFileName: '',
-          codeFileType: ''
+          codeFileType: '',
+          mappingSheetReference: ''
         })
     }));
     if (form.areaId !== areaId) setScreenshots([]);
@@ -3205,7 +3245,7 @@ function App() {
       <section className="signal-strip">
         <div><strong>{stats.words}</strong><span>Words</span></div>
         <div><strong>{stats.screenshots}</strong><span>Screenshots</span></div>
-        <div><strong>{stats.completedFields}/9</strong><span>Inputs filled</span></div>
+        <div><strong>{stats.completedFields}/{stats.trackedFields}</strong><span>Inputs filled</span></div>
         <div><strong>{stats.sections}</strong><span>Doc sections</span></div>
       </section>
 
@@ -3471,6 +3511,17 @@ function App() {
                   Configuration notes
                   <textarea rows={4} value={form.configNotes} onChange={(event) => updateForm('configNotes', event.target.value)} disabled={!areaReady} placeholder="Optional if not visible in evidence." />
                 </label>
+                {displayArea.id === 'sap-integration' ? (
+                  <label>
+                    Mapping sheet reference
+                    <input
+                      value={form.mappingSheetReference}
+                      onChange={(event) => updateForm('mappingSheetReference', event.target.value)}
+                      disabled={!areaReady}
+                      placeholder="Excel file name, SharePoint link, Google Drive link, or repository URL for source-to-target mapping"
+                    />
+                  </label>
+                ) : null}
               </section>
 
               <section className="input-section">
