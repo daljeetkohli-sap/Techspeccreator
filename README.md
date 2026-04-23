@@ -22,6 +22,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 - Skips code and screenshot sections when those artifacts are not supplied, so the final document does not call out missing inputs.
 - Copies generated document text to the clipboard and opens Preview so the generated content is visible.
 - Copies a Confluence-friendly rich HTML version for pasting into a Confluence page while keeping the Word export available as an attachment/reference.
+- Optionally imports Jira Cloud issue context through a local read-only backend, then uses story, acceptance criteria, description, linked issue, and comment context in the generated Project Context section.
 - Downloads a real `.docx` file using the `TechSpec_<document-title>_v<version>.docx` naming pattern; if an embedded browser blocks downloads, open the app in Chrome or Edge and try again.
 - Saves form inputs locally in the browser with `localStorage`.
 
@@ -29,7 +30,7 @@ TechDoc Studio is a local React/Vite app for creating technical specifications f
 
 - Use `BETA_TESTING.md` for the beta test checklist.
 - Use `DEMO_DEPLOYMENT.md` for the MVP demo deployment steps.
-- The app is frontend-only and does not require backend services.
+- The core app is frontend-only for document generation. Jira import is optional and requires the local context server.
 - GitHub Pages deployment is configured through `.github/workflows/deploy-demo.yml`; after Pages is enabled with GitHub Actions as the source, pushes to `main` deploy the static demo.
 - Screenshot images stay in the active browser session; exported `.docx` documents contain embedded logos, screenshots, figure descriptions, captured visible text, and generated technical interpretation.
 - OCR is available for visible text extraction from screenshots, but the app does not yet perform full server-side AI vision or diagram topology understanding. Testers should review and correct OCR output before exporting customer-facing specs.
@@ -44,6 +45,30 @@ npm run dev
 ```
 
 Open the localhost URL shown by Vite.
+
+## Optional Jira Context Import
+
+The Jira import uses a small local backend so Jira API tokens are not exposed in the browser.
+
+1. Copy `server/.env.example` to `server/.env`.
+2. Set:
+   - `JIRA_BASE_URL`, for example `https://yourcompany.atlassian.net`
+   - `JIRA_EMAIL`
+   - `JIRA_API_TOKEN`
+   - optional `JIRA_ACCEPTANCE_CRITERIA_FIELD`, for example `customfield_10045`
+3. Start the context server:
+
+```bash
+npm run dev:server
+```
+
+4. In a second terminal, start the app:
+
+```bash
+npm run dev
+```
+
+In the Project Context section, enter a Jira issue key such as `ABC-123` and click **Import from Jira**.
 
 ## Build
 

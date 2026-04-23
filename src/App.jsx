@@ -16,6 +16,8 @@ import {
 import JSZip from 'jszip';
 import { createWorker } from 'tesseract.js';
 
+const contextApiBase = import.meta.env.VITE_CONTEXT_API_BASE || 'http://localhost:8787';
+
 const capabilityAreas = [
   {
     id: 'sap-abap',
@@ -2955,6 +2957,8 @@ function App() {
   const [lastAction, setLastAction] = useState('');
   const [ocrActiveId, setOcrActiveId] = useState('');
   const [ocrStatus, setOcrStatus] = useState('');
+  const [jiraIssueKey, setJiraIssueKey] = useState('');
+  const [contextImportStatus, setContextImportStatus] = useState('');
 
   const selectedArea = capabilityAreas.find((area) => area.id === form.areaId) || null;
   const displayArea = selectedArea ?? capabilityAreas[0];
@@ -3018,6 +3022,39 @@ function App() {
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function importJiraContext() {
+    if (!ensureAreaSelected('import Jira context')) return;
+    const issueKey = safeLine(jiraIssueKey).toUpperCase();
+    if (!/^[A-Z][A-Z0-9]+-\d+$/.test(issueKey)) {
+      setContextImportStatus('Enter a valid Jira issue key, for example ABC-123.');
+      showToast('Enter Jira issue key');
+      return;
+    }
+
+    setContextImportStatus(`Importing ${issueKey} from Jira...`);
+    try {
+      const response = await fetch(`${contextApiBase}/api/jira/issue/${encodeURIComponent(issueKey)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || `Jira import failed with ${response.status}`);
+      }
+
+      setForm((current) => ({
+        ...current,
+        jiraContext: [current.jiraContext, payload.jiraContext].map(safeLine).filter(Boolean).join('\n\n'),
+        designContext: [current.designContext, payload.designContext].map(safeLine).filter(Boolean).join('\n\n'),
+        decisionContext: [current.decisionContext, payload.decisionContext].map(safeLine).filter(Boolean).join('\n\n'),
+        apiContext: [current.apiContext, payload.apiContext].map(safeLine).filter(Boolean).join('\n\n')
+      }));
+      setContextImportStatus(`Imported ${issueKey}: ${payload.summary || 'Jira context loaded'}.`);
+      showToast('Jira context imported');
+    } catch (error) {
+      const message = error?.message || 'Could not import Jira context';
+      setContextImportStatus(`${message}. Start the local context server with npm run dev:server and check server/.env.`);
+      showToast('Jira import failed');
+    }
   }
 
   function selectArea(areaId) {
@@ -3740,6 +3777,21 @@ function App() {
               <section className="input-section">
                 <h3>Project Context</h3>
                 <p className="helper-copy">Add project references so the generated spec can align code and screenshots with real delivery scope, design decisions, mappings, and acceptance criteria.</p>
+                <div className="context-import-row">
+                  <label>
+                    Jira issue key
+                    <input
+                      value={jiraIssueKey}
+                      onChange={(event) => setJiraIssueKey(event.target.value)}
+                      disabled={!areaReady}
+                      placeholder="ABC-123"
+                    />
+                  </label>
+                  <button type="button" onClick={importJiraContext} disabled={!areaReady}>
+                    Import from Jira
+                  </button>
+                </div>
+                {contextImportStatus ? <p className="helper-copy">{contextImportStatus}</p> : null}
                 <label>
                   Jira / work item context
                   <textarea rows={3} value={form.jiraContext} onChange={(event) => updateForm('jiraContext', event.target.value)} disabled={!areaReady} placeholder="Epic/story IDs, story summary, acceptance criteria, defect IDs, or release scope." />

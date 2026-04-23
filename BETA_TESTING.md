@@ -13,6 +13,16 @@ npm run dev
 
 Open the localhost URL shown by Vite.
 
+## Optional Jira Context Server
+
+For Jira import testing, copy `server/.env.example` to `server/.env`, add the Jira Cloud URL, email, API token, and optional acceptance criteria custom field, then run:
+
+```bash
+npm run dev:server
+```
+
+Keep the Vite app running separately with `npm run dev`. In the app, choose a solution area, enter a Jira issue key in Project Context, and click **Import from Jira**.
+
 ## Production Build Check
 
 ```bash
@@ -47,6 +57,7 @@ npm run build
 - Switch between Functional Spec, Technical Spec, Support Runbook, and Handover Pack.
 - Use Copy doc and confirm Preview opens, status text appears, and document text is copied to the clipboard.
 - Use Copy for Confluence and paste into a Confluence page. Confirm headings, tables, bullet lists, numbered process flow, and code blocks remain readable. Attach the downloaded Word file to the same Confluence page for audit/reference.
+- Start the optional Jira context server, import a Jira story, and confirm summary, status, acceptance criteria/custom field, description, linked issues, and recent comments populate Project Context and appear in Preview, Word export, and Confluence copy.
 - Use Download Word and confirm the file name starts with `TechSpec_` and includes the version suffix, then confirm the `.docx` file opens in Microsoft Word and Google Docs with embedded ABC Consulting/customer logos, populated document sections, inferred implementation summary, revision history, technical design sections, process flow, template alignment, testing, deployment, monitoring/support, risks, and approval handover included. Confirm code and screenshot content appears only when those artifacts are supplied. If the embedded browser blocks downloads, open the app in Chrome or Edge and retry, or use Copy doc as the fallback.
 - Refresh the browser and confirm form data is restored from local storage.
 - Reset the workspace and confirm screenshots and inputs are cleared.
@@ -60,7 +71,7 @@ npm run build
 - PDF/DOCX templates are referenced and guided by the Template Guidance field; the frontend does not deeply parse every proprietary template format.
 - Screenshot understanding uses screenshot type, caption, OCR-extracted visible text, pasted visible text, and reviewer notes. OCR accuracy depends on image clarity and does not replace full AI vision or manual review.
 - Copy for Confluence uses browser clipboard support. If rich clipboard access is blocked, the app falls back to plain generated text.
-- The app currently has no backend, authentication, or shared team storage.
+- The core app has no shared team storage. Jira import uses an optional local backend with credentials stored in `server/.env`; do not commit real tokens.
 
 ## Developer Notes
 

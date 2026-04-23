@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node server/jira-server.mjs",
     "build": "vite build",
     "build:pages": "vite build --base=./",
     "preview": "vite preview"

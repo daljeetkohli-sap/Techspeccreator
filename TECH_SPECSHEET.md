@@ -23,7 +23,7 @@ The app has been checked against the requested beta behavior:
 | Code and screenshot evidence should work together safely | Implemented. The app now supports combined code plus screenshot evidence and still clears evidence when the solution area changes. |
 | Document name should be derived from evidence | Implemented. The app derives title from code filename, detected code object, CPI/iFlow name, or screenshot caption/evidence before falling back. |
 | Most content should come from code/screenshot | Implemented and improved. Process flow, technical design, screenshot interpretation, code understanding, and testing focus are evidence-driven. Manual notes are supporting context. |
-| Generated specs should use wider project context | Implemented for MVP. The app now accepts Jira/work item context, design/HLD notes, architecture references, meeting decisions, and API/mapping details, then includes them in generated summaries and a Project Context section. |
+| Generated specs should use wider project context | Implemented for MVP. The app accepts manual context and can optionally import Jira Cloud issue context through a local read-only backend, then includes Jira/work item context, design/HLD notes, architecture references, meeting decisions, and API/mapping details in generated summaries and a Project Context section. |
 | SAP Commerce specs should not contain unrelated ABAP/CAP references | Improved. Commerce generation now prioritizes OCC/API entry points, facade/service paths, Commerce model access, DTO mapping, null checks, exception paths, impex/type-system, Backoffice/HAC, and system-update context. |
 | No hardcoded sample content in beta flow | Implemented. Active sample defaults were removed and migrated away from saved local state. |
 | Screenshots from any supported area should be understood | Improved. The app now treats OCR text, screenshot captions, and reviewer notes as implementation evidence across ABAP, CPI, Fiori/UI5, CAP/Node.js, Azure Logic Apps, Spartacus, SAP Commerce, RAP, BW/Datasphere, and MDG. CPI/iFlow has an additional specialized extractor. |
@@ -107,6 +107,7 @@ Users can provide:
 - Optional risks and open items
 - Optional SAP Integration/CPI mapping sheet reference for source-to-target validation
 - Optional Jira / work item context
+- Optional Jira Cloud issue import through local backend
 - Optional design document or HLD context
 - Optional architecture or diagram reference
 - Optional meeting notes and decisions
@@ -125,6 +126,8 @@ The app now supports a dedicated Project Context layer. Consultants can paste or
 - Integration mappings, API endpoint details, payload contracts, OpenAPI/Swagger links, and mapping sheet references
 
 This context is used alongside code snippets and screenshot evidence. Generated documents include a Project Context section and use the context to improve the implementation summary, process alignment, testing scope, support handover, and review narrative.
+
+The first Jira integration is read-only and local-demo focused. A small Node context server reads Jira credentials from `server/.env`, calls Jira Cloud REST APIs, and returns normalized story context to the browser. This avoids putting Jira API tokens in frontend code.
 
 ### Branding
 
@@ -337,7 +340,8 @@ Direct Confluence page create/update via Atlassian API is not implemented yet.
 - Static GitHub Pages-ready deployment
 - Browser-only runtime
 - Local browser state using `localStorage`
-- No backend dependency
+- No backend dependency for document generation
+- Optional local Node context server for Jira issue import
 
 ### Document Export
 
@@ -367,10 +371,10 @@ These are the remaining gaps after the latest validation:
 - Non-CPI screenshots are interpreted from visible OCR text, screenshot type, caption, and notes; screenshots without readable text still need human notes.
 - OCR may miss small labels, dense diagrams, or low-resolution screenshots.
 - PDF/DOCX template parsing is text-oriented and does not deeply preserve layout.
-- No backend API exists yet.
+- No hosted backend API exists yet; Jira import currently uses a local backend for MVP/demo usage.
 - No user login, team workspace, or persistent document library exists yet.
 - No direct Confluence API publishing yet.
-- No live SAP, Azure, BTP, GitHub, Azure DevOps, Jira, or transport connectivity yet.
+- No live SAP, Azure, BTP, GitHub, Azure DevOps, or transport connectivity yet. Jira Cloud has an MVP read-only local import path.
 - Document quality still depends on the quality of evidence and beta feedback.
 - Functional Spec, Support Runbook, and Handover Pack need more real-project examples to become as strong as Technical Spec.
 - Code understanding remains pattern-based and can misclassify ambiguous snippets.
@@ -391,6 +395,7 @@ Beta testing should validate:
 - Word export opens correctly in Word and Google Docs.
 - Confluence copy pastes cleanly.
 - Project context from Jira/story notes, design/HLD references, architecture notes, decisions, mappings, and API details appears in the generated document without overriding stronger code or screenshot evidence.
+- Jira import retrieves story context through the local backend without exposing the API token in browser code.
 - Technical flow diagram is useful and not overconfident.
 - CPI mapping sheet reference appears in metadata, generated sections, Word export, and Confluence-ready copy.
 - Dynamic solution-area sections are useful for ABAP, CPI, Fiori, CAP, Azure Logic Apps, Spartacus, Commerce, RAP, BW/Datasphere, and MDG.
