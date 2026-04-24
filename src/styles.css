@@ -188,6 +188,93 @@ h1 {
   font-weight: 780;
 }
 
+.walkthrough-strip {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 42px rgba(22, 33, 42, 0.07);
+}
+
+.walkthrough-strip-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+}
+
+.walkthrough-strip-header h2 {
+  font-size: 1.4rem;
+}
+
+.walkthrough-strip-header p {
+  margin-top: 6px;
+  max-width: 760px;
+  color: #5a6b77;
+  line-height: 1.5;
+}
+
+.walkthrough-progress {
+  min-width: 140px;
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  padding: 12px 14px;
+  border: 1px solid #b7d8ce;
+  border-radius: 8px;
+  background: #eef7f5;
+}
+
+.walkthrough-progress strong {
+  color: #17343b;
+  font-size: 1.3rem;
+}
+
+.walkthrough-progress span {
+  color: #5a6b77;
+  font-size: 0.84rem;
+  font-weight: 820;
+}
+
+.walkthrough-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.walkthrough-card {
+  min-height: 138px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.walkthrough-card.done {
+  border-color: #b7d8ce;
+  background: #eef7f5;
+}
+
+.walkthrough-card strong {
+  display: block;
+  color: #17343b;
+  font-size: 0.95rem;
+}
+
+.walkthrough-card p {
+  margin-top: 4px;
+  color: #5a6b77;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .action-status {
   display: flex;
   flex-wrap: wrap;
@@ -407,22 +494,42 @@ h1 {
   color: #2d3c46;
 }
 
-.walkthrough-number {
-  width: 28px;
-  height: 28px;
+.walkthrough-state {
+  min-height: 28px;
   display: inline-grid;
   place-items: center;
+  padding: 0 10px;
   border-radius: 999px;
+  border: 1px solid #c9d2d9;
   background: #fff;
-  color: #1f5d6c;
-  border: 1px solid #b7d8ce;
-  font-size: 0.82rem;
+  color: #2d3c46;
+  font-size: 0.78rem;
   font-weight: 900;
+  text-transform: uppercase;
 }
 
-.walkthrough-panel li.done .walkthrough-number {
+.walkthrough-state.done {
+  border-color: #1f5d6c;
   background: #1f5d6c;
   color: #fff;
+}
+
+.walkthrough-state.next {
+  border-color: #167a5b;
+  background: #eef7f5;
+  color: #167a5b;
+}
+
+.walkthrough-state.optional {
+  border-color: #c9d2d9;
+  background: #f7fafb;
+  color: #5a6b77;
+}
+
+.walkthrough-state.later {
+  border-color: #d8e0e5;
+  background: #fff;
+  color: #7a8791;
 }
 
 .walkthrough-panel li strong {
@@ -796,6 +903,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .walkthrough-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .side-panel {
     position: static;
   }
@@ -819,7 +930,8 @@ h1 {
   .signal-strip,
   .field-grid,
   .brand-preview,
-  .template-choice-grid {
+  .template-choice-grid,
+  .walkthrough-cards {
     grid-template-columns: 1fr;
   }
 
@@ -843,6 +955,15 @@ h1 {
 
   .context-import-row {
     grid-template-columns: 1fr;
+  }
+
+  .walkthrough-strip-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .walkthrough-progress {
+    justify-items: start;
   }
 
   .side-panel,

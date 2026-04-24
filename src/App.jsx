@@ -3008,6 +3008,14 @@ function buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots) {
   ];
 }
 
+function getWalkthroughState(step, index, steps) {
+  if (step.complete) return { label: 'Done', tone: 'done' };
+  const nextIndex = steps.findIndex((item) => !item.complete && !item.optional);
+  if (index === nextIndex) return { label: 'Next', tone: 'next' };
+  if (step.optional) return { label: 'Optional', tone: 'optional' };
+  return { label: 'Later', tone: 'later' };
+}
+
 function App() {
   const savedWorkspace = loadSavedWorkspace();
   const [form, setForm] = useState(savedWorkspace?.form ?? initialForm);
@@ -3560,6 +3568,33 @@ function App() {
         <div><strong>{stats.sections}</strong><span>Doc sections</span></div>
       </section>
 
+      <section className="walkthrough-strip">
+        <div className="walkthrough-strip-header">
+          <div>
+            <span className="eyebrow">Guided Flow</span>
+            <h2>Walk Me Through</h2>
+            <p>Follow these steps in order so the generated document is accurate, reviewable, and ready for handover.</p>
+          </div>
+          <div className="walkthrough-progress">
+            <strong>{walkthroughSteps.filter((step) => step.complete).length}/{walkthroughSteps.length}</strong>
+            <span>Steps completed</span>
+          </div>
+        </div>
+        <div className="walkthrough-cards" role="list">
+          {walkthroughSteps.map((step, index) => {
+            const state = getWalkthroughState(step, index, walkthroughSteps);
+            return (
+            <article key={step.title} className={`walkthrough-card ${step.complete ? 'done' : ''}`} role="listitem">
+              <span className={`walkthrough-state ${state.tone}`}>{state.label}</span>
+              <div>
+                <strong>{step.title}{step.optional ? ' (optional)' : ''}</strong>
+                <p>{step.detail}</p>
+              </div>
+            </article>
+          )})}
+        </div>
+      </section>
+
       <section className="workspace-grid">
         <aside className="side-panel">
           <div className="panel-heading">
@@ -3612,24 +3647,6 @@ function App() {
                 <li key={gap}>{gap}</li>
               )) : <li>Ready to preview, copy, export Word, or copy for Confluence.</li>}
             </ul>
-          </div>
-
-          <div className="walkthrough-panel">
-            <div className="walkthrough-heading">
-              <strong>Walk Me Through</strong>
-              <span>End-user steps</span>
-            </div>
-            <ol>
-              {walkthroughSteps.map((step, index) => (
-                <li key={step.title} className={step.complete ? 'done' : ''}>
-                  <span className="walkthrough-number">{index + 1}</span>
-                  <div>
-                    <strong>{step.title}{step.optional ? ' (optional)' : ''}</strong>
-                    <p>{step.detail}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
           </div>
 
           <div className="area-sections">
