@@ -2956,7 +2956,6 @@ function buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots) {
     safeLine(form.decisionContext) ||
     safeLine(form.apiContext)
   );
-  const hasTemplateChoice = Boolean(form.templateMode);
   const hasReviewedScreenshot = screenshots.some((shot) => safeLine(shot.note) || safeLine(shot.extractedText));
   const hasGovernance = Boolean(safeLine(form.owner) || safeLine(form.documentVersion) || safeLine(form.revisionSummary));
 
@@ -3008,7 +3007,30 @@ function buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots) {
   ];
 }
 
-function getWalkthroughState(step, index, steps) {
+function hasWalkthroughActivity(form, screenshots) {
+  return Boolean(
+    safeLine(form.areaId) ||
+    safeLine(form.title) ||
+    safeLine(form.owner) ||
+    safeLine(form.system) ||
+    safeLine(form.overview) ||
+    safeLine(form.businessProcess) ||
+    safeLine(form.codeSnippet) ||
+    safeLine(form.codeFileName) ||
+    safeLine(form.testingNotes) ||
+    safeLine(form.risks) ||
+    safeLine(form.revisionSummary) ||
+    safeLine(form.jiraContext) ||
+    safeLine(form.designContext) ||
+    safeLine(form.architectureContext) ||
+    safeLine(form.decisionContext) ||
+    safeLine(form.apiContext) ||
+    screenshots.length
+  );
+}
+
+function getWalkthroughState(step, index, steps, hasActivity) {
+  if (!hasActivity) return { label: step.optional ? 'Optional' : 'Start here', tone: step.optional ? 'optional' : index === 0 ? 'next' : 'later' };
   if (step.complete) return { label: 'Done', tone: 'done' };
   const nextIndex = steps.findIndex((item) => !item.complete && !item.optional);
   if (index === nextIndex) return { label: 'Next', tone: 'next' };
@@ -3051,6 +3073,7 @@ function App() {
   const derivedBusinessProcess = areaReady && evidenceReady ? deriveBusinessProcessText(form, displayArea, screenshots) : '';
   const readinessGaps = buildReadinessGaps(form, displayArea, screenshots);
   const walkthroughSteps = buildWalkthroughSteps(form, areaReady, evidenceReady, screenshots);
+  const walkthroughActive = hasWalkthroughActivity(form, screenshots);
   const evidenceMode = safeLine(form.codeSnippet) || safeLine(form.codeFileName)
     ? screenshots.length ? 'Code and screenshot evidence' : 'Code evidence'
     : screenshots.length
@@ -3573,16 +3596,16 @@ function App() {
           <div>
             <span className="eyebrow">Guided Flow</span>
             <h2>Walk Me Through</h2>
-            <p>Follow these steps in order so the generated document is accurate, reviewable, and ready for handover.</p>
+            <p>{walkthroughActive ? 'Follow these steps in order so the generated document is accurate, reviewable, and ready for handover.' : 'Start with the first step. Progress will update after you begin entering information.'}</p>
           </div>
           <div className="walkthrough-progress">
-            <strong>{walkthroughSteps.filter((step) => step.complete).length}/{walkthroughSteps.length}</strong>
-            <span>Steps completed</span>
+            <strong>{walkthroughActive ? `${walkthroughSteps.filter((step) => step.complete).length}/${walkthroughSteps.length}` : 'Ready'}</strong>
+            <span>{walkthroughActive ? 'Steps completed' : 'Guided checklist'}</span>
           </div>
         </div>
         <div className="walkthrough-cards" role="list">
           {walkthroughSteps.map((step, index) => {
-            const state = getWalkthroughState(step, index, walkthroughSteps);
+            const state = getWalkthroughState(step, index, walkthroughSteps, walkthroughActive);
             return (
             <article key={step.title} className={`walkthrough-card ${step.complete ? 'done' : ''}`} role="listitem">
               <span className={`walkthrough-state ${state.tone}`}>{state.label}</span>
