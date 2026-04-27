@@ -181,3 +181,109 @@ No Dockerfile was detected. Even if Docker is not used, document the runtime ver
 
 Document the app runtime, required environment variables, build/start commands, health check URL, and rollback process.
 
+
+
+# Approved Review Proposals
+
+Approved at: 2026-04-27T10:47:56.554Z
+Source repo: https://github.com/daljeetkohli-sap/Techspeccreator
+
+## Add business-ready summaries
+
+Category: feature
+Risk: low
+
+business-ready summaries appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: ERPScribe. Suggested implementation: add a scoped MVP for business-ready summaries, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add team/admin tiers
+
+Category: feature
+Risk: low
+
+team/admin tiers appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: ERPScribe. Suggested implementation: add a scoped MVP for team/admin tiers, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add OpenAPI reference generation
+
+Category: feature
+Risk: low
+
+OpenAPI reference generation appears in comparable tools (Mintlify) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: Mintlify. Suggested implementation: add a scoped MVP for OpenAPI reference generation, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add OpenAPI import
+
+Category: feature
+Risk: low
+
+OpenAPI import appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: GitBook API Docs. Suggested implementation: add a scoped MVP for OpenAPI import, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add API playground
+
+Category: feature
+Risk: low
+
+API playground appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: GitBook API Docs. Suggested implementation: add a scoped MVP for API playground, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add connected knowledge base
+
+Category: feature
+Risk: low
+
+connected knowledge base appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: GitBook API Docs. Suggested implementation: add a scoped MVP for connected knowledge base, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add interactive docs
+
+Category: feature
+Risk: low
+
+interactive docs appears in comparable tools (Stoplight) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: Stoplight. Suggested implementation: add a scoped MVP for interactive docs, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add API catalog
+
+Category: feature
+Risk: low
+
+API catalog appears in comparable tools (Stoplight) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: Stoplight. Suggested implementation: add a scoped MVP for API catalog, include acceptance criteria, and expose it in the app workflow after approval.
+
+## Add reusable template packs
+
+Category: feature
+Risk: medium
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates.
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add source evidence traceability
+
+Category: feature
+Risk: medium
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy.
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add reviewer workflow
+
+Category: feature
+Risk: medium
+
+Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review.
+
+Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
