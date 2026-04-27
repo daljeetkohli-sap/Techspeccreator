@@ -1,3 +1,5 @@
+import React from 'react';
+
 const implementedFeatures = [
   {
     "title": "Record comparable-app market scan",
