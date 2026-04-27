@@ -995,12 +995,14 @@ h1 {
 
 .app-review-enhancements__header h2,
 .app-review-enhancement-card h3,
+.app-review-user-outcomes h3,
 .app-review-market-grid h3 {
   margin: 0;
 }
 
 .app-review-enhancements__header p,
 .app-review-enhancement-card p,
+.app-review-outcome-card span,
 .app-review-market-grid span {
   color: #475569;
 }
@@ -1015,6 +1017,7 @@ h1 {
 }
 
 .app-review-enhancements__grid,
+.app-review-outcome-list,
 .app-review-market-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -1022,6 +1025,8 @@ h1 {
 }
 
 .app-review-enhancement-card,
+.app-review-user-outcomes,
+.app-review-outcome-card,
 .app-review-market-grid article {
   display: grid;
   gap: 10px;
@@ -1029,6 +1034,14 @@ h1 {
   border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.82);
+}
+
+.app-review-user-outcomes {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.app-review-outcome-card {
+  border-left: 4px solid #0f766e;
 }
 
 .app-review-card-meta {
