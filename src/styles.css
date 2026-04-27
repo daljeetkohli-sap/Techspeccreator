@@ -1003,8 +1003,14 @@ h1 {
 .app-review-enhancements__header p,
 .app-review-enhancement-card p,
 .app-review-outcome-card span,
+.app-review-outcome-card small,
 .app-review-market-grid span {
   color: #475569;
+}
+
+.app-review-outcome-card small {
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .app-review-eyebrow,

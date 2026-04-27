@@ -234,8 +234,97 @@ const featureGaps = [
   }
 ];
 
+function describeEndUserValue(feature) {
+  const text = `${feature.title} ${feature.summary}`.toLowerCase();
+  if (text.includes('business-ready summar')) {
+    return 'Users get concise business summaries they can share with stakeholders without rewriting technical detail by hand.';
+  }
+  if (text.includes('team/admin') || text.includes('role')) {
+    return 'Teams can separate administrator, reviewer, and contributor responsibilities before wider rollout.';
+  }
+  if (text.includes('openapi reference') || text.includes('api reference')) {
+    return 'API consumers get structured endpoint documentation that is easier to review, test, and hand over.';
+  }
+  if (text.includes('openapi import')) {
+    return 'Users can bring existing API definitions into the documentation flow instead of manually recreating endpoint details.';
+  }
+  if (text.includes('api playground')) {
+    return 'Reviewers and developers get an interactive way to understand API behavior before implementation sign-off.';
+  }
+  if (text.includes('knowledge base') || text.includes('confluence')) {
+    return 'Documentation can fit into the team knowledge base so specs are easier to find after generation.';
+  }
+  if (text.includes('interactive docs')) {
+    return 'End users get navigable documentation instead of a static wall of text, making review and discovery faster.';
+  }
+  if (text.includes('api catalog')) {
+    return 'Teams get a clearer inventory of APIs and integration points across generated specifications.';
+  }
+  if (text.includes('template')) {
+    return 'Users start from reusable templates, reducing blank-page effort and keeping specs consistent.';
+  }
+  if (text.includes('evidence') || text.includes('traceability')) {
+    return 'Reviewers can see where generated statements came from, improving trust and auditability.';
+  }
+  if (text.includes('export')) {
+    return 'Users can move finished specs into the formats and destinations their delivery process already uses.';
+  }
+  if (text.includes('reviewer workflow') || text.includes('approval')) {
+    return 'The app supports clearer review states so teams know what is draft, approved, rejected, or ready to publish.';
+  }
+  if (text.includes('bug') || text.includes('risk')) {
+    return 'Users get a safer app because known implementation risks are called out and tracked for remediation.';
+  }
+  if (text.includes('audit') || text.includes('history')) {
+    return 'Stakeholders can see what changed, who approved it, and why it was added.';
+  }
+  return 'Users get a visible, reviewed improvement that is tracked in the app and repository change records.';
+}
+
+function describeFeatureAccess(feature) {
+  const text = `${feature.title} ${feature.summary}`.toLowerCase();
+  if (text.includes('business-ready summar')) {
+    return { status: 'Available now', location: 'Generated Implementation Summary and downloaded DOCX/Markdown output.' };
+  }
+  if (text.includes('template')) {
+    return { status: 'Available now', location: 'SAP area selector, template mode, and generated section outline.' };
+  }
+  if (text.includes('evidence') || text.includes('traceability')) {
+    return { status: 'Available now', location: 'Screenshots, code snippets, evidence notes, and generated evidence sections.' };
+  }
+  if (text.includes('export')) {
+    return { status: 'Available now', location: 'Export/download actions for generated technical documentation.' };
+  }
+  if (text.includes('reviewer workflow') || text.includes('approval')) {
+    return { status: 'Partly available', location: 'Review notes and generated audit content; full multi-user workflow is still a roadmap item.' };
+  }
+  if (text.includes('audit') || text.includes('history')) {
+    return { status: 'Available now', location: 'Market-Driven Enhancements panel plus APP_REVIEW_PROGRESS.md, REVIEW_PROPOSALS.md, and DAILY_REVIEW_LOG.md.' };
+  }
+  if (text.includes('bug') || text.includes('risk')) {
+    return { status: 'Available now', location: 'Repository review log and approved fix records created by the GitHub App Reviewer.' };
+  }
+  if (
+    text.includes('openapi') ||
+    text.includes('api playground') ||
+    text.includes('api catalog') ||
+    text.includes('team/admin') ||
+    text.includes('interactive docs') ||
+    text.includes('knowledge base')
+  ) {
+    return { status: 'Approved next-step', location: 'Not a standalone end-user workflow yet; tracked here and in repo audit files for implementation.' };
+  }
+  return { status: 'Tracked', location: 'Visible in this reviewed enhancements panel and repository audit files.' };
+}
+
 export default function AppReviewEnhancements() {
   if (!implementedFeatures.length) return null;
+  const approvedFeatureNames = new Set(
+    implementedFeatures.map((feature) => feature.title.replace(/^Add\s+/i, '').trim().toLowerCase())
+  );
+  const remainingFeatureGaps = featureGaps.filter(
+    (gap) => !approvedFeatureNames.has(String(gap.feature || '').trim().toLowerCase())
+  );
 
   return (
     <section className="app-review-enhancements" aria-label="Approved market review enhancements">
@@ -249,6 +338,29 @@ export default function AppReviewEnhancements() {
           </p>
         </div>
         <span>{implementedFeatures.length} approved</span>
+      </div>
+
+      <div className="app-review-user-outcomes">
+        <div>
+          <p className="app-review-eyebrow">End-user value</p>
+          <h3>What users get from these changes</h3>
+        </div>
+        <div className="app-review-outcome-list">
+          {implementedFeatures.map((feature) => (
+            <article key={feature.title} className="app-review-outcome-card">
+              {(() => {
+                const access = describeFeatureAccess(feature);
+                return (
+                  <>
+                    <strong>{feature.title.replace(/^Add\s+/i, '')}</strong>
+                    <span>{describeEndUserValue(feature)}</span>
+                    <small><b>{access.status}:</b> {access.location}</small>
+                  </>
+                );
+              })()}
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className="app-review-enhancements__grid">
@@ -277,15 +389,19 @@ export default function AppReviewEnhancements() {
           </ul>
         </article>
         <article>
-          <h3>Top Feature Gaps</h3>
-          <ul>
-            {featureGaps.map((gap) => (
-              <li key={gap.feature}>
-                <strong>{gap.feature}</strong>
-                <span>Seen in {gap.seenIn.join(', ')}</span>
-              </li>
-            ))}
-          </ul>
+          <h3>{remainingFeatureGaps.length ? 'Remaining Feature Gaps' : 'Market Gaps Implemented'}</h3>
+          {remainingFeatureGaps.length ? (
+            <ul>
+              {remainingFeatureGaps.map((gap) => (
+                <li key={gap.feature}>
+                  <strong>{gap.feature}</strong>
+                  <span>Seen in {gap.seenIn.join(', ')}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>All approved market-study gaps in this run are now tracked as implemented items above.</p>
+          )}
         </article>
       </div>
     </section>
