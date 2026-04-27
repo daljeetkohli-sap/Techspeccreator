@@ -236,12 +236,6 @@ const featureGaps = [
 
 export default function AppReviewEnhancements() {
   if (!implementedFeatures.length) return null;
-  const approvedFeatureNames = new Set(
-    implementedFeatures.map((feature) => feature.title.replace(/^Add\s+/i, '').trim().toLowerCase())
-  );
-  const remainingFeatureGaps = featureGaps.filter(
-    (gap) => !approvedFeatureNames.has(String(gap.feature || '').trim().toLowerCase())
-  );
 
   return (
     <section className="app-review-enhancements" aria-label="Approved market review enhancements">
@@ -250,7 +244,7 @@ export default function AppReviewEnhancements() {
           <p className="app-review-eyebrow">Approved market review</p>
           <h2>Market-Driven Enhancements</h2>
           <p>
-            Approved from GitHub App Reviewer on "2026-04-27T11:54:40.754Z" for "https://github.com/daljeetkohli-sap/Techspeccreator.git".
+            Approved from GitHub App Reviewer on "2026-04-27T12:10:50.164Z" for "https://github.com/daljeetkohli-sap/Techspeccreator.git".
             These items are now visible in the app and tracked in the repository audit files.
           </p>
         </div>
@@ -283,19 +277,15 @@ export default function AppReviewEnhancements() {
           </ul>
         </article>
         <article>
-          <h3>{remainingFeatureGaps.length ? 'Remaining Feature Gaps' : 'Market Gaps Implemented'}</h3>
-          {remainingFeatureGaps.length ? (
-            <ul>
-              {remainingFeatureGaps.map((gap) => (
-                <li key={gap.feature}>
-                  <strong>{gap.feature}</strong>
-                  <span>Seen in {gap.seenIn.join(', ')}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>All approved market-study gaps in this run are now tracked as implemented items above.</p>
-          )}
+          <h3>Top Feature Gaps</h3>
+          <ul>
+            {featureGaps.map((gap) => (
+              <li key={gap.feature}>
+                <strong>{gap.feature}</strong>
+                <span>Seen in {gap.seenIn.join(', ')}</span>
+              </li>
+            ))}
+          </ul>
         </article>
       </div>
     </section>
