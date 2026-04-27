@@ -1,9 +1,87 @@
 const implementedFeatures = [
   {
+    "title": "Record comparable-app market scan",
+    "category": "market",
+    "risk": "low",
+    "summary": "Compared this app against public GitHub projects for technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator. Top comparable signals include OpenAPITools/openapi-generator."
+  },
+  {
     "title": "Add business-ready summaries",
     "category": "feature",
     "risk": "low",
     "summary": "business-ready summaries appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add team/admin tiers",
+    "category": "feature",
+    "risk": "low",
+    "summary": "team/admin tiers appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add OpenAPI reference generation",
+    "category": "feature",
+    "risk": "low",
+    "summary": "OpenAPI reference generation appears in comparable tools (Mintlify) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add OpenAPI import",
+    "category": "feature",
+    "risk": "low",
+    "summary": "OpenAPI import appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add connected knowledge base",
+    "category": "feature",
+    "risk": "low",
+    "summary": "connected knowledge base appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add interactive docs",
+    "category": "feature",
+    "risk": "low",
+    "summary": "interactive docs appears in comparable tools (Stoplight) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add API catalog",
+    "category": "feature",
+    "risk": "low",
+    "summary": "API catalog appears in comparable tools (Stoplight) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
+    "title": "Add reusable template packs",
+    "category": "feature",
+    "risk": "medium",
+    "summary": "Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates."
+  },
+  {
+    "title": "Add source evidence traceability",
+    "category": "feature",
+    "risk": "medium",
+    "summary": "Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy."
+  },
+  {
+    "title": "Add export destinations",
+    "category": "feature",
+    "risk": "medium",
+    "summary": "Add one-click exports to DOCX, Markdown, Confluence-ready HTML, and Git commit files so generated specs fit common enterprise documentation workflows."
+  },
+  {
+    "title": "Add reviewer workflow",
+    "category": "feature",
+    "risk": "medium",
+    "summary": "Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review."
+  },
+  {
+    "title": "Review static bug-risk findings",
+    "category": "bugfix",
+    "risk": "medium",
+    "summary": "40 static bug-risk signal(s) were found, including diagnostics, TODO/FIXME markers, or risky JavaScript patterns."
+  },
+  {
+    "title": "Add approval audit visibility",
+    "category": "feature",
+    "risk": "low",
+    "summary": "Expose a small review history page or Markdown changelog in the target app so stakeholders can see which proposals were approved, rejected, pushed, and why."
   }
 ];
 const comparedProducts = [
@@ -158,7 +236,7 @@ export default function AppReviewEnhancements() {
           <p className="app-review-eyebrow">Approved market review</p>
           <h2>Market-Driven Enhancements</h2>
           <p>
-            Approved from GitHub App Reviewer on "2026-04-27T10:56:25.581Z" for "https://github.com/daljeetkohli-sap/Techspeccreator".
+            Approved from GitHub App Reviewer on "2026-04-27T11:04:52.668Z" for "https://github.com/daljeetkohli-sap/Techspeccreator".
             These items are now visible in the app and tracked in the repository audit files.
           </p>
         </div>
