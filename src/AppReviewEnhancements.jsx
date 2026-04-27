@@ -234,53 +234,6 @@ const featureGaps = [
   }
 ];
 
-function describeEndUserValue(feature) {
-  const text = `${feature.title} ${feature.summary}`.toLowerCase();
-  if (text.includes('business-ready summar')) {
-    return 'Users get concise business summaries they can share with stakeholders without rewriting technical detail by hand.';
-  }
-  if (text.includes('team/admin') || text.includes('role')) {
-    return 'Teams can separate administrator, reviewer, and contributor responsibilities before wider rollout.';
-  }
-  if (text.includes('openapi reference') || text.includes('api reference')) {
-    return 'API consumers get structured endpoint documentation that is easier to review, test, and hand over.';
-  }
-  if (text.includes('openapi import')) {
-    return 'Users can bring existing API definitions into the documentation flow instead of manually recreating endpoint details.';
-  }
-  if (text.includes('api playground')) {
-    return 'Reviewers and developers get an interactive way to understand API behavior before implementation sign-off.';
-  }
-  if (text.includes('knowledge base') || text.includes('confluence')) {
-    return 'Documentation can fit into the team knowledge base so specs are easier to find after generation.';
-  }
-  if (text.includes('interactive docs')) {
-    return 'End users get navigable documentation instead of a static wall of text, making review and discovery faster.';
-  }
-  if (text.includes('api catalog')) {
-    return 'Teams get a clearer inventory of APIs and integration points across generated specifications.';
-  }
-  if (text.includes('template')) {
-    return 'Users start from reusable templates, reducing blank-page effort and keeping specs consistent.';
-  }
-  if (text.includes('evidence') || text.includes('traceability')) {
-    return 'Reviewers can see where generated statements came from, improving trust and auditability.';
-  }
-  if (text.includes('export')) {
-    return 'Users can move finished specs into the formats and destinations their delivery process already uses.';
-  }
-  if (text.includes('reviewer workflow') || text.includes('approval')) {
-    return 'The app supports clearer review states so teams know what is draft, approved, rejected, or ready to publish.';
-  }
-  if (text.includes('bug') || text.includes('risk')) {
-    return 'Users get a safer app because known implementation risks are called out and tracked for remediation.';
-  }
-  if (text.includes('audit') || text.includes('history')) {
-    return 'Stakeholders can see what changed, who approved it, and why it was added.';
-  }
-  return 'Users get a visible, reviewed improvement that is tracked in the app and repository change records.';
-}
-
 export default function AppReviewEnhancements() {
   if (!implementedFeatures.length) return null;
 
@@ -291,26 +244,11 @@ export default function AppReviewEnhancements() {
           <p className="app-review-eyebrow">Approved market review</p>
           <h2>Market-Driven Enhancements</h2>
           <p>
-            Approved from GitHub App Reviewer on "2026-04-27T12:10:50.164Z" for "https://github.com/daljeetkohli-sap/Techspeccreator.git".
+            Approved from GitHub App Reviewer on "2026-04-27T12:20:26.810Z" for "https://github.com/daljeetkohli-sap/Techspeccreator.git".
             These items are now visible in the app and tracked in the repository audit files.
           </p>
         </div>
         <span>{implementedFeatures.length} approved</span>
-      </div>
-
-      <div className="app-review-user-outcomes">
-        <div>
-          <p className="app-review-eyebrow">End-user value</p>
-          <h3>What users get from these changes</h3>
-        </div>
-        <div className="app-review-outcome-list">
-          {implementedFeatures.map((feature) => (
-            <article key={feature.title} className="app-review-outcome-card">
-              <strong>{feature.title.replace(/^Add\s+/i, '')}</strong>
-              <span>{describeEndUserValue(feature)}</span>
-            </article>
-          ))}
-        </div>
       </div>
 
       <div className="app-review-enhancements__grid">
