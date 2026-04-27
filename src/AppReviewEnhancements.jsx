@@ -236,6 +236,12 @@ const featureGaps = [
 
 export default function AppReviewEnhancements() {
   if (!implementedFeatures.length) return null;
+  const approvedFeatureNames = new Set(
+    implementedFeatures.map((feature) => feature.title.replace(/^Add\s+/i, '').trim().toLowerCase())
+  );
+  const remainingFeatureGaps = featureGaps.filter(
+    (gap) => !approvedFeatureNames.has(String(gap.feature || '').trim().toLowerCase())
+  );
 
   return (
     <section className="app-review-enhancements" aria-label="Approved market review enhancements">
@@ -277,15 +283,19 @@ export default function AppReviewEnhancements() {
           </ul>
         </article>
         <article>
-          <h3>Top Feature Gaps</h3>
-          <ul>
-            {featureGaps.map((gap) => (
-              <li key={gap.feature}>
-                <strong>{gap.feature}</strong>
-                <span>Seen in {gap.seenIn.join(', ')}</span>
-              </li>
-            ))}
-          </ul>
+          <h3>{remainingFeatureGaps.length ? 'Remaining Feature Gaps' : 'Market Gaps Implemented'}</h3>
+          {remainingFeatureGaps.length ? (
+            <ul>
+              {remainingFeatureGaps.map((gap) => (
+                <li key={gap.feature}>
+                  <strong>{gap.feature}</strong>
+                  <span>Seen in {gap.seenIn.join(', ')}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>All approved market-study gaps in this run are now tracked as implemented items above.</p>
+          )}
         </article>
       </div>
     </section>
