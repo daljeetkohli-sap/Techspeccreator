@@ -973,3 +973,84 @@ h1 {
     padding: 16px;
   }
 }
+
+
+.app-review-enhancements {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid rgba(36, 99, 235, 0.22);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.96), rgba(236, 253, 245, 0.96));
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.app-review-enhancements__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-review-enhancements__header h2,
+.app-review-enhancement-card h3,
+.app-review-market-grid h3 {
+  margin: 0;
+}
+
+.app-review-enhancements__header p,
+.app-review-enhancement-card p,
+.app-review-market-grid span {
+  color: #475569;
+}
+
+.app-review-eyebrow,
+.app-review-enhancements__header > span,
+.app-review-card-meta span {
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.app-review-enhancements__grid,
+.app-review-market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.app-review-enhancement-card,
+.app-review-market-grid article {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.app-review-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-review-market-grid ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-review-market-grid li {
+  display: grid;
+  gap: 4px;
+}
+
+.app-review-market-grid a {
+  color: #1d4ed8;
+  font-weight: 800;
+}

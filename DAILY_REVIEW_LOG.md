@@ -84,3 +84,60 @@ Approved at: 2026-04-27T10:47:56.554Z
 - Add reusable template packs: Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates.
 - Add source evidence traceability: Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy.
 - Add reviewer workflow: Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review.
+
+
+# Ad Hoc Review Log
+
+Run: 1777287260514-1da40e09
+Approved at: 2026-04-27T10:56:25.581Z
+
+## Errors
+
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:25
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:55
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:56
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:57
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:58
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:91
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:92
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:93
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:94
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:95
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:96
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:97
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:98
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:99
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:100
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:101
+- [medium] code-quality: TODO/FIXME/HACK marker found in APP_REVIEW_PROGRESS.md:102
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:19
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:36
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:37
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:38
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:39
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:59
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:60
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:61
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:62
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:63
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:64
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:65
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:66
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:67
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:68
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:69
+- [medium] code-quality: TODO/FIXME/HACK marker found in DAILY_REVIEW_LOG.md:70
+- [medium] code-quality: TODO/FIXME/HACK marker found in REVIEW_PROPOSALS.md:65
+- [medium] code-quality: TODO/FIXME/HACK marker found in REVIEW_PROPOSALS.md:67
+- [low] diagnostics: Console diagnostic statement found in server/jira-server.mjs:177
+- [high] build: build script failed
+
+## Approved Fixes
+
+- Add business-ready summaries: business-ready summaries appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction.
+
+## Visible App Changes
+
+- src/AppReviewEnhancements.jsx
+- src/App.jsx
+- src/styles.css

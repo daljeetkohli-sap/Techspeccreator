@@ -287,3 +287,19 @@ Add draft, reviewed, approved, and rejected states with comments so technical sp
 
 Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
 
+
+
+# Approved Review Proposals
+
+Approved at: 2026-04-27T10:56:25.581Z
+Source repo: https://github.com/daljeetkohli-sap/Techspeccreator
+
+## Add business-ready summaries
+
+Category: feature
+Risk: low
+
+business-ready summaries appears in comparable tools (ERPScribe) but was not detected in this app. Add it if it fits the product direction.
+
+Comparable tools with this feature: ERPScribe. Suggested implementation: add a scoped MVP for business-ready summaries, include acceptance criteria, and expose it in the app workflow after approval.
+

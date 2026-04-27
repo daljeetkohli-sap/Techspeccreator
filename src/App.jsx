@@ -1,3 +1,4 @@
+import AppReviewEnhancements from './AppReviewEnhancements.jsx';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlignmentType,
@@ -4085,6 +4086,7 @@ function App() {
           )}
         </section>
       </section>
+      <AppReviewEnhancements />
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </main>
