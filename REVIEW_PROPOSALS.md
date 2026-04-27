@@ -129,3 +129,55 @@ No Dockerfile was detected. Even if Docker is not used, document the runtime ver
 
 Document the app runtime, required environment variables, build/start commands, health check URL, and rollback process.
 
+
+
+# Approved Review Proposals
+
+Approved at: 2026-04-27T10:36:43.706Z
+Source repo: https://github.com/daljeetkohli-sap/Techspeccreator
+
+## Add reusable template packs
+
+Category: feature
+Risk: medium
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates.
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add source evidence traceability
+
+Category: feature
+Risk: medium
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy.
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Review vite upgrade
+
+Category: dependency
+Risk: medium
+
+vite is declared as ^5.4.10; npm latest is 8.0.10. Review changelog and test before deployment.
+
+vite is declared as ^5.4.10; latest observed version is 8.0.10. Review release notes, update in a branch, run tests/build, and deploy after approval.
+
+## Add approval audit visibility
+
+Category: feature
+Risk: low
+
+Expose a small review history page or Markdown changelog in the target app so stakeholders can see which proposals were approved, rejected, pushed, and why.
+
+Add a lightweight audit view or link to APP_REVIEW_PROGRESS.md so app owners can trace review decisions after deployment.
+
+## Document deployment contract
+
+Category: deployment
+Risk: medium
+
+No Dockerfile was detected. Even if Docker is not used, document the runtime version, build command, start command, health check, and rollback path.
+
+Document the app runtime, required environment variables, build/start commands, health check URL, and rollback process.
+
