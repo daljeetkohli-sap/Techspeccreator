@@ -32,6 +32,12 @@ const implementedFeatures = [
     "summary": "OpenAPI import appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction."
   },
   {
+    "title": "Add API playground",
+    "category": "feature",
+    "risk": "low",
+    "summary": "API playground appears in comparable tools (GitBook API Docs) but was not detected in this app. Add it if it fits the product direction."
+  },
+  {
     "title": "Add connected knowledge base",
     "category": "feature",
     "risk": "low",
@@ -238,7 +244,7 @@ export default function AppReviewEnhancements() {
           <p className="app-review-eyebrow">Approved market review</p>
           <h2>Market-Driven Enhancements</h2>
           <p>
-            Approved from GitHub App Reviewer on "2026-04-27T11:04:52.668Z" for "https://github.com/daljeetkohli-sap/Techspeccreator".
+            Approved from GitHub App Reviewer on "2026-04-27T11:54:40.754Z" for "https://github.com/daljeetkohli-sap/Techspeccreator.git".
             These items are now visible in the app and tracked in the repository audit files.
           </p>
         </div>
