@@ -1,0 +1,131 @@
+# Approved Review Proposals
+
+Approved at: 2026-04-27T10:24:29.467Z
+Source repo: https://github.com/daljeetkohli-sap/Techspeccreator
+
+## Add an explicit license
+
+Category: governance
+Risk: low
+
+GitHub metadata does not report a repository license. Add a LICENSE file so reuse and ownership expectations are clear.
+
+Add a LICENSE file and document any internal usage restrictions in README.md.
+
+## Record comparable-app market scan
+
+Category: market
+Risk: low
+
+Compared this app against public GitHub projects for technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator. Top comparable signals include OpenAPITools/openapi-generator.
+
+App category inferred: Technical specification and SAP documentation generator. Comparable GitHub repositories: OpenAPITools/openapi-generator (26169 stars, https://github.com/OpenAPITools/openapi-generator). Comparable npm packages: @asyncapi/nodejs-ws-template@0.10.0; @apidevtools/openapi-schemas@2.1.0; is-generator-function@1.1.2; emojibase@17.0.0; generator-function@2.0.1; @sap/generator-fiori@1.22.0.
+
+## Add reusable template packs
+
+Category: feature
+Risk: medium
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates.
+
+Comparable documentation tools usually win through reusable templates. Add SAP/Fiori/API/integration template packs with required sections, examples, and review gates. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add source evidence traceability
+
+Category: feature
+Risk: medium
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy.
+
+Generated specs should link every major statement back to uploaded screenshots, code snippets, endpoints, or user answers so reviewers can audit accuracy. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add export destinations
+
+Category: feature
+Risk: medium
+
+Add one-click exports to DOCX, Markdown, Confluence-ready HTML, and Git commit files so generated specs fit common enterprise documentation workflows.
+
+Add one-click exports to DOCX, Markdown, Confluence-ready HTML, and Git commit files so generated specs fit common enterprise documentation workflows. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Add reviewer workflow
+
+Category: feature
+Risk: medium
+
+Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review.
+
+Add draft, reviewed, approved, and rejected states with comments so technical specs can move through business analyst, developer, and architect review. Basis: inferred category 'Technical specification and SAP documentation generator' and comparable-app market scan terms 'technical specification generator, sap documentation generator, software documentation generator, confluence documentation generator'.
+
+## Review static bug-risk findings
+
+Category: bugfix
+Risk: medium
+
+1 static bug-risk signal(s) were found, including diagnostics, TODO/FIXME markers, or risky JavaScript patterns.
+
+Inspect the listed files and remove stale diagnostics, resolve TODO/FIXME markers, and replace unsafe patterns before deployment.
+
+## Document environment variables
+
+Category: configuration
+Risk: low
+
+No .env.example or .env.sample file was detected.
+
+Add .env.example with required keys, safe placeholders, and notes for local, staging, and production values.
+
+## Add a first test path
+
+Category: quality
+Risk: medium
+
+No test script or test files were detected.
+
+Add a minimal test harness around the highest-risk user flow, then wire it to npm run test and CI.
+
+## Review react upgrade
+
+Category: dependency
+Risk: medium
+
+react is declared as ^18.3.1; npm latest is 19.2.5. Review changelog and test before deployment.
+
+react is declared as ^18.3.1; latest observed version is 19.2.5. Review release notes, update in a branch, run tests/build, and deploy after approval.
+
+## Review react-dom upgrade
+
+Category: dependency
+Risk: medium
+
+react-dom is declared as ^18.3.1; npm latest is 19.2.5. Review changelog and test before deployment.
+
+react-dom is declared as ^18.3.1; latest observed version is 19.2.5. Review release notes, update in a branch, run tests/build, and deploy after approval.
+
+## Review vite upgrade
+
+Category: dependency
+Risk: medium
+
+vite is declared as ^5.4.10; npm latest is 8.0.10. Review changelog and test before deployment.
+
+vite is declared as ^5.4.10; latest observed version is 8.0.10. Review release notes, update in a branch, run tests/build, and deploy after approval.
+
+## Add approval audit visibility
+
+Category: feature
+Risk: low
+
+Expose a small review history page or Markdown changelog in the target app so stakeholders can see which proposals were approved, rejected, pushed, and why.
+
+Add a lightweight audit view or link to APP_REVIEW_PROGRESS.md so app owners can trace review decisions after deployment.
+
+## Document deployment contract
+
+Category: deployment
+Risk: medium
+
+No Dockerfile was detected. Even if Docker is not used, document the runtime version, build command, start command, health check, and rollback path.
+
+Document the app runtime, required environment variables, build/start commands, health check URL, and rollback process.
+
